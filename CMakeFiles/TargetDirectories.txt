@@ -1,0 +1,3 @@
+/home/pierciro/Scrivania/seal_demo/CMakeFiles/app.dir
+/home/pierciro/Scrivania/seal_demo/CMakeFiles/edit_cache.dir
+/home/pierciro/Scrivania/seal_demo/CMakeFiles/rebuild_cache.dir
