@@ -19,61 +19,60 @@ using namespace std;
 using namespace seal;
 
 
-// Convert a bitstring into a negative plain value, as string too
-string convert_plain_value(string bitstring)
-{
-	int int_value = stoi(bitstring, 0, 2);
-	return to_string(int_value);
-}
-
-
 /* The second step of the PSI scheme: homomorphically subtract each value of the receiver's dataset from 
  * each of the sender's one, and finally multiply for a random value 
  * */
-vector<Ciphertext> homomorphic_computation(vector<Ciphertext> recv_ct_array, EncryptionParameters params)
+vector<Ciphertext> homomorphic_computation(vector<Ciphertext> recv_ct_array, EncryptionParameters params, vector<string> sender_dataset)
 {
 	SEALContext send_context(params);	// this class checks the validity of the parameters set
 	
 	/* Used to evalutate each single ciphertext value sent by the recevier */
-	Evaluator send_evaluator(send_context);
-	
-	
-	/* Relinearization is the operation performed to decrease the size of the ciphertext. 
-	 * This is used to avoid the noise used in the homomorphic computations to get to 0 (??) so that decrypt is possibile 
-	 * */
+	Evaluator send_evaluator(send_context);	
 	KeyGenerator send_keygen(send_context);
-	RelinKeys send_relin_keys;
-	send_keygen.create_relin_keys(send_relin_keys);
 
-	/* Here we evaluate the polynomial expressed at the top of this file. It is the PSI scheme polynomial that has to be computed for each element of the received dataset */
-	vector<string> sender_dataset;
 	vector<Ciphertext> sender_ct;
+	
+	//sender_dataset = {"11111", "10000", "10001"};
 
-	sender_dataset.assign(3, "00100");
-
-	for(Ciphertext ct: recv_ct_array){
-		int send_index = 0;
+	/* Here we evaluate the polynomial expressed at the top of this file. It is the PSI scheme polynomial, that has to be computed 
+	 * for each element of the received dataset 
+	 * */
+	for(Ciphertext ct : recv_ct_array){
+		//vector<Ciphertext> sub_ct;	// keeps the sum of c_i - s_j
+		//vector<Ciphertext> prod_ct;	// keeps the product of all the (c_i - s_j) so far
+		//cout << "Calculating ploynomial" <<endl;
 		Plaintext rand_val("1");	// this must become a random value
-		Ciphertext d_i;		// the final result
+		Ciphertext d_i;				// the final result
+		//RelinKeys send_relin_keys;
+		//send_keygen.create_relin_keys(send_relin_keys);
 		
 		// Compute the first subtraction and product
-		send_evaluator.sub_plain(ct, Plaintext(convert_plain_value(sender_dataset[0])), d_i);	// homomorphic computation of c_i - s_j
-		send_evaluator.multiply_plain_inplace(d_i, rand_val);
-		//send_evaluator.relinearize_inplace(first_ct, send_relin_keys);
-
-		for(size_t index = 1; index < sender_dataset.size(); index++){
-			Ciphertext sub_ct;	// keeps the sum of c_i - s_j
-			send_evaluator.sub_plain(ct, Plaintext(convert_plain_value(sender_dataset[index])), sub_ct);	// homomorphic computation of c_i - s_j
-			send_evaluator.multiply(d_i, sub_ct, d_i); 
-			//send_evaluator.relinearize_inplace(d_i, send_relin_keys);
-		}
-
-		// Finally, multiply for the random value
-		send_evaluator.multiply_plain_inplace(d_i, rand_val); 
+		send_evaluator.sub_plain(ct, Plaintext(to_string(stoi(sender_dataset[0],0,2))), d_i);	// homomorphic computation of c_i - s_j
+		//send_evaluator.multiply_plain_inplace(d_i, rand_val);
 		//send_evaluator.relinearize_inplace(d_i, send_relin_keys);
 		
-		sender_ct.insert(sender_ct.begin()+send_index, d_i);
-		send_index++;
+		//cout << "Done first mult" << endl;
+		
+		//RelinKeys send_relin_keys;
+		//send_keygen.create_relin_keys(send_relin_keys);
+
+		for(long index = 1; index < sender_dataset.size(); index++){ 
+			//RelinKeys send_relin_keys;
+			//send_keygen.create_relin_keys(send_relin_keys);
+			//cout << "Inside for with integer " << sender_dataset[index] <<endl;
+			Ciphertext sub_ct;	// keeps the sum of c_i - s_j
+			Ciphertext prod_ct;	// keeps the product of all the (c_i - s_j) so far
+			send_evaluator.sub_plain(ct, Plaintext(to_string(stoi(sender_dataset[index], 0, 2))), sub_ct);	// homomorphic computation of c_i - s_j
+			send_evaluator.multiply(d_i, sub_ct, prod_ct); 
+			//send_evaluator.relinearize_inplace(prod_ct, send_relin_keys);
+			d_i = prod_ct;
+		}
+		
+		// Finally, multiply for the random value
+		send_evaluator.multiply_plain_inplace(d_i, rand_val); 
+		
+		//cout << "Encrypted element " << endl;
+		sender_ct.push_back(d_i);
 	}
 	
 	cout << "Second step completed" << endl;

@@ -1,0 +1,47 @@
+\documentclass[12pt]{extarticle}
+\usepackage[english]{babel}
+
+\title{Network and System Defense Report\\PSI Scheme implementation}
+\author{Caliandro Pierciro - 0299815}
+
+\begin{document}
+\maketitle
+
+\section{Notes}
+Preliminary notes:
+\begin{itemize}
+	\item Scheme depth for the arithmetic computation, in this scenario $\prod\limits_{i \in S} c_j \cdot s_i$, can make the invariant noise used by the BFV scheme (even CKKS one) became 0, which leads to corrupted ciphertext that cannot be decrypted.\\So, it is very important to consider carefully the size of the scheme's parameters that are used in the application;
+	\item the first important trade-off is on the polynomial modulus degree value: this should be a value that is a power of 2, the larger the value, the bigger will be the ciphertext and so the slower will be the operations. So, it depends on the size of the polynomial that we want to evaluate, that is strictly correlated to the size of the dataset (consider that 4096 is almost the 'bare minimum' to have computations that are not restrictive);
+	\item the coefficient modulus can be set by default;
+	\item the plaintext modulus is also important because it defines the size of the plaintext and so: 
+		\begin{itemize}
+			\item how fast the computation is;
+			\item the consumption of budget noise during multiplication;
+		\end{itemize}
+		The noise budget in a freshly encrypted ciphertext is $\propto$ log2(coeff\_mod/plain\_mod) (bits), while the noise budget cosumption in a homomorphic multiplication (that is the "heavier" operation that we perform in this scheme) is $\propto$ log2(plain\_mod) + (other terms). This parameter is specific for this scheme;
+	\item relinerization helps to keep the size of the ciphertext small (can only pass from 3 size to 2 size);
+	\item 
+\end{itemize}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\end{document}
