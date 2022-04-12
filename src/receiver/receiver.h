@@ -8,5 +8,6 @@
 using namespace seal;
 
 // Functions prototypes
-std::vector<Ciphertext> crypt_dataset(Receiver recv, EncryptionParameters params);
-void decrypt_and_insersect(EncryptionParameters params, vector<Ciphertext> sender_computation, Receiver recv);
+Ciphertext crypt_dataset(Receiver recv, EncryptionParameters params);
+void decrypt_and_insersect(EncryptionParameters params, Ciphertext sender_computation, Receiver recv);
+Receiver setup_pk_sk(EncryptionParameters params);

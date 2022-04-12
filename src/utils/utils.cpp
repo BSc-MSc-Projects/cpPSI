@@ -34,17 +34,13 @@ string bit_to_hex(string bitstring)
 
 
 /**
- * Helper function that open the dataset of the dataset and convert each value according to the parameter conv_type. In this case,
- * the parameter can have 2 values:
- * 	- 0: convert the bitstring into hexadecimal string (receiver)
- * 	- 1: convert the bitstring into integer value, again rappresented as a string (sender)
+ * Helper function that open the dataset of the dataset and convert each value 
  *
  * @param path Dataset path
- * @param conv_type The type of conversion to make
  *
  * @return vector of strings
  * */
-vector<string> convert_dataset(string path, int conv_type)
+vector<string> convert_dataset(string path)
 {
 	vector<string> conv_dataset;
 	
@@ -61,10 +57,7 @@ vector<string> convert_dataset(string path, int conv_type)
 	
 	while(getline(dataset, dataset_line)){
 		dataset_line = dataset_line.substr(0, dataset_line.length());		// cut the final '\n' character
-		//if (!conv_type)
-		//	conv_dataset.push_back(bit_to_hex(dataset_line));
-		//else
-			conv_dataset.push_back(to_string(stoi(dataset_line, 0, 2)));
+		conv_dataset.push_back(to_string(stoull(dataset_line, 0, 2)));
 	}
 	
 	dataset.close();														// close the resource

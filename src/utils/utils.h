@@ -8,7 +8,7 @@ using namespace seal;
 
 // Function prototypes
 string bit_to_hex(string bitstring); 
-vector<string> convert_dataset(string path, int conv_type);
+vector<string> convert_dataset(string path);
 
 // Usefull class definition 
 class Receiver
