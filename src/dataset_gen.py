@@ -2,7 +2,7 @@
 import random
 
 
-string_len = 7
+string_len = 24
 dataset_size = 10
 
 

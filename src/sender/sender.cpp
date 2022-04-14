@@ -23,12 +23,42 @@ using namespace std;
 using namespace seal;
 
 
-/* The second step of the PSI scheme: homomorphically subtract each value of the receiver's dataset from 
- * each of the sender's one, and finally multiply for a random value 
+/**
+ * Generate a vector of random values that will be used in the homomorphic computation
+ *
+ * @param slot_count Slot count of the matrix
+ * @param dataset_size Size of the sender's dataset
+ *
+ * @return A vector of random ull values
  * */
-Ciphertext homomorphic_computation(Ciphertext recv_ct_array, EncryptionParameters params, vector<string> sender_dataset)
+vector<uint64_t> gen_rand(size_t slot_count, size_t dataset_size)
 {
-	SEALContext send_context(params);	// this class checks the validity of the parameters set
+	vector<uint64_t> rand_val_matrix(slot_count, 0ULL);
+	random_device rd;     	// Get a random seed from the OS entropy device, or whatever
+  	mt19937_64 eng(rd()); 	// Use the 64-bit Mersenne Twister 19937 generator and seed it with entropy.
+	
+	//Define the distribution, by default it goes from 0 to MAX(unsigned long long) or what have you.
+  	uniform_int_distribution<unsigned long> distr;	
+	for(size_t index = 0; index < dataset_size; index++){
+		rand_val_matrix[index] = distr(eng);
+	}
+	return rand_val_matrix;
+}
+
+
+/** 
+ * The second step of the PSI scheme: homomorphically subtract each value of the receiver's dataset from each of the sender's one, 
+ * and finally multiply for a random value.
+ *
+ * @param recv_ct Ciphertext matrix sent by the receiver
+ * @param params EncryptionParameters parameters agreed with the Receiver
+ * @param sender_dataset Set of bitstrings of the sender
+ *
+ * @return Homomorphic computation of the sender
+ * */
+Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters params, vector<string> sender_dataset)
+{
+	SEALContext send_context(params);							// this class checks the validity of the parameters set
 	
 	/* Used to evalutate each single ciphertext value sent by the recevier */
 	Evaluator send_evaluator(send_context);	
@@ -42,54 +72,38 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct_array, EncryptionParameter
 	size_t slot_count = encoder.slot_count();
 	size_t row_size = slot_count/2;
 
-	// TODO: is this ok? Should it be a truly random num gen?	
-	vector<uint64_t> rand_val_matrix(slot_count, 0ULL);
-	random_device rd;     //Get a random seed from the OS entropy device, or whatever
-  	mt19937_64 eng(rd()); //Use the 64-bit Mersenne Twister 19937 generator
-                             //and seed it with entropy.
-	//Define the distribution, by default it goes from 0 to MAX(unsigned long long)
-  		//or what have you.
-  	uniform_int_distribution<unsigned long long> distr;
-	
-	for(index = 0; index < sender_dataset.size(); index++)
-		rand_val_matrix[index] = distr(eng);
-	
-	Plaintext rand_plain;
-	//for(index = 0; index < recv_ct_array.size(); index++)
-	//	rand_val_matrix[index] = 25;
-	encoder.encode(rand_val_matrix, rand_plain);
-
-	//Plaintext rand_val("25");	// this must become a random value
-	Ciphertext d_i;				// the final result
-	//RelinKeys send_relin_keys;
-	//send_keygen.create_relin_keys(send_relin_keys);
+	Ciphertext d_i;												// the final result
+	RelinKeys send_relin_keys;
+	send_keygen.create_relin_keys(send_relin_keys);
 		
-	// Compute the first product
+	// Compute the first subtraction
 	vector<uint64_t> first_val_matrix(slot_count, 0ULL);
 	Plaintext first_plain;
 	for(index = 0; index < sender_dataset.size(); index++)
-		first_val_matrix[index] = stoull(sender_dataset[0]);
+		first_val_matrix[index] = stoull(sender_dataset[0], 0, 2);
 	encoder.encode(first_val_matrix, first_plain);
 		
-	send_evaluator.sub_plain(recv_ct_array, first_plain, d_i);	// homomorphic computation of c_i - s_j
-	
+	send_evaluator.sub_plain(recv_ct, first_plain, d_i);	// homomorphic computation of c_i - s_j
+
 	/* For each value of the sender dataset, compute the difference between the matrices. 
 	 * Then, multiply with the previous value to keep up with the polynomial computation */
 	for(long index = 1; index < sender_dataset.size(); index++){
-		vector<uint64_t> prod_matrix(slot_count, stoull(sender_dataset[index]));
+		vector<uint64_t> prod_matrix(slot_count, stoull(sender_dataset[index], 0, 2));
 		Plaintext sub_plain;
-		Ciphertext sub_ecnrypted; 
+		Ciphertext sub_encrypted; 
 		Ciphertext prod_ecnrypted;
 		encoder.encode(prod_matrix, sub_plain);
-		send_evaluator.sub_plain(recv_ct_array, sub_plain, sub_ecnrypted);
-		send_evaluator.multiply_inplace(d_i, sub_ecnrypted); 
+		send_evaluator.sub_plain(recv_ct, sub_plain, sub_encrypted);
+		send_evaluator.multiply_inplace(d_i, sub_encrypted); 
 		//send_evaluator.relinearize_inplace(d_i, send_relin_keys);
 	}
 		
 	// Finally, multiply for the random value
+	Plaintext rand_plain;
+	encoder.encode(gen_rand(slot_count, sender_dataset.size()), rand_plain);
 	send_evaluator.multiply_plain_inplace(d_i, rand_plain); 
 	//send_evaluator.relinearize_inplace(d_i, send_relin_keys);
 	
-	cout << "Second step completed" << endl;
+	printf("Second step completed\n");
 	return d_i;
 }

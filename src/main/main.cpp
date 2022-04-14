@@ -1,6 +1,6 @@
 /* This is a class that shows a proof of work for the PSI scheme implemented in the "sender.cpp" and "receiver.cpp" files 
  * This file is used to allow both parties to "communicate" each other. Some steps are trivial, such as the agreement on the 
- * homomorphic scheme, that is CKKS. 
+ * homomorphic scheme, that is BFV. 
  * */
 
 #include <iostream>
@@ -16,13 +16,12 @@
 using namespace std;
 using namespace seal;
 
-/* Constants for the sender and the receiver */
 
-
+/* Main function */
 int main (int argc, char *argv[])
 {
 	if (argc < 3){
-		cout << "Usage: prog file path of receiver file path of sender file" << endl;
+		printf("Usage: prog file path of receiver file path of sender file");
 		return -1;
 	}
 	/* For simpicity, the agreement between sender and receiver is supposed to be done here */
@@ -48,10 +47,18 @@ int main (int argc, char *argv[])
 	 * */
 	Receiver recv;
 	recv = setup_pk_sk(params);
+	vector<string> recv_dataset;
 	recv.setRecvDataset(convert_dataset(argv[1]));
-	Ciphertext recv_encr_data = crypt_dataset(recv, params);
 	
+	/* This is the full PSI scheme:
+	 *  - the receiver encrypts its dataset;
+	 *  - the sender computes the homomorphic product on the ecnrypted data 
+	 *  - the receiver decrypt the computation received by the sender and computes the interception
+	 *  */
+	Ciphertext recv_encr_data = crypt_dataset(recv, params);
+
 	Ciphertext send_encr_result = homomorphic_computation(recv_encr_data, params, convert_dataset(argv[2]));
-	decrypt_and_insersect(params, send_encr_result, recv);
+	decrypt_and_intersect(params, send_encr_result, recv);
+	
 	return 0;
 }
