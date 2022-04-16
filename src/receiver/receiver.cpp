@@ -65,8 +65,10 @@ Ciphertext crypt_dataset(Receiver recv, EncryptionParameters params)
  * @param params EncryptionParameters class instance, containing the information about the scheme
  * @param sender_computation Ciphertext resulting after the homomorphic computation performed by the sender
  * @param recv Receiver class instance containing the secret key used to decrypt the sender computaiton
+ * 
+ * @return The size of the intersection
  * */
-void decrypt_and_intersect(EncryptionParameters params, Ciphertext sender_computation, Receiver recv)
+int decrypt_and_intersect(EncryptionParameters params, Ciphertext sender_computation, Receiver recv)
 {
 	SEALContext recv_context(params);     							// this class checks the validity of the parameters set
 	Decryptor recv_decryptor(recv_context, recv.getRecvSk());		// needed to check if everything worked
@@ -94,6 +96,7 @@ void decrypt_and_intersect(EncryptionParameters params, Ciphertext sender_comput
 		print_intersection(intersection);
 	else
 		printf("The intersection between sender and receiver is null \n");
+	return intersection.size();
 }
 
 
@@ -101,6 +104,7 @@ void decrypt_and_intersect(EncryptionParameters params, Ciphertext sender_comput
  * Generate public and secret keys for recevier operations
  *
  * @param params EncryptionParameters class instance, containing the information about the scheme
+ * 
  * */
 Receiver setup_pk_sk(EncryptionParameters params)
 {
