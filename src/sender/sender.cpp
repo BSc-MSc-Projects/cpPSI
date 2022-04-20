@@ -16,6 +16,7 @@
 #include <vector>
 #include <random>
 #include <limits>
+#include <climits>
 #include "seal/seal.h"
 #include "../utils/utils.h"
 
@@ -38,9 +39,10 @@ vector<uint64_t> gen_rand(size_t slot_count, size_t dataset_size)
   	mt19937_64 eng(rd()); 	// Use the 64-bit Mersenne Twister 19937 generator and seed it with entropy.
 	
 	//Define the distribution, by default it goes from 0 to MAX(unsigned long long) or what have you.
-  	uniform_int_distribution<unsigned long> distr;	
+  	uniform_int_distribution<uint64_t> distr(1, LONG_MAX);
 	for(size_t index = 0; index < dataset_size; index++){
-		rand_val_matrix[index] = distr(eng);
+		size_t value = distr(eng);
+		rand_val_matrix[index] = value;	
 	}
 	return rand_val_matrix;
 }
@@ -73,8 +75,8 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters para
 	size_t row_size = slot_count/2;
 
 	Ciphertext d_i;												// the final result
-	RelinKeys send_relin_keys;
-	send_keygen.create_relin_keys(send_relin_keys);
+	//RelinKeys send_relin_keys;
+	//send_keygen.create_relin_keys(send_relin_keys);
 		
 	// Compute the first subtraction
 	vector<uint64_t> first_val_matrix(slot_count, 0ULL);

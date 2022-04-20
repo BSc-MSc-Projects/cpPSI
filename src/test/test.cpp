@@ -60,7 +60,7 @@ vector<string> write_on_file(int n_entries, int string_length, int n_intersect, 
 	ofstream ds_steam(path);
 	
 	if(ds_steam.is_open()){
-		for(int i = 0; i < n_entries; i++){
+		for(int i = 0; i < n_entries - prev_intersect.size(); i++){
 			for(int j = 0; j < string_length; j++)
 				bitstring += to_string(rand()%2);
 			
@@ -106,7 +106,7 @@ int main (int argc, char *argv[])
 	vector<int> n_entries = {4,6,8,10};
 	int string_lengths = 10;
 	int num_intersects = 4;
-	vector<size_t> poly_mod_degrees = {4096, 8192, 16384};
+	vector<size_t> poly_mod_degrees = {16384};//{4096, 8192, 16384};
 	int result;
 
 	// Tests consider a different size of the datasets and different poly_mod_degrees values 
