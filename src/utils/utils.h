@@ -8,6 +8,7 @@ using namespace seal;
 
 // Function prototypes
 vector<string> convert_dataset(string path);
+vector<uint64_t> bitstring_to_long_dataset(vector<string> dataset);
 
 // Usefull class definition 
 class Receiver
@@ -15,7 +16,8 @@ class Receiver
 public:
 	void setRecvDataset(vector<string> dataset){ 
 		this->recv_dataset = dataset;
-		setBitsSize(dataset[0].length());
+		if (dataset.size() > 0)
+			setBitsSize(dataset[0].length());
 	}
 	void setRecvSk(SecretKey sk){ this->recv_sk = sk; } 
 	void setRecvPk(PublicKey pk){ this->recv_pk = pk; }

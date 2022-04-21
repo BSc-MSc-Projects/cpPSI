@@ -3,6 +3,7 @@
  * homomorphic scheme. 
  * */
 
+#include <cstddef>
 #include <iostream>
 #include <ostream>
 #include <string>
@@ -34,12 +35,23 @@ void print_intersection(vector<string> intersection);
  * */
 Ciphertext crypt_dataset(Receiver recv, EncryptionParameters params)
 {   
+	Ciphertext encrypted_recv_matrix;
+	vector<string> recv_dataset = recv.getRecvDataset();
+	if(recv_dataset.size() == 0) {
+		printf("Receiver dataset is empty");
+		return encrypted_recv_matrix;
+	}
+
+	vector<uint64_t> longint_recv_dataset = bitstring_to_long_dataset(recv_dataset);
+	if (longint_recv_dataset.size() == 0){
+		printf("Receiver dataset is malformed\n");
+		return encrypted_recv_matrix;
+	}
+
 	SEALContext recv_context(params);     								// this class checks the validity of the parameters set 
 	Encryptor encryptor(recv_context, recv.getRecvPk());
 	Plaintext plain_recv_matrix;
-	Ciphertext encrypted_recv_matrix;
 	vector<Ciphertext> cipher_dataset;
-	vector<string> recv_dataset = recv.getRecvDataset();
 	
 	BatchEncoder recv_batch_encoder(recv_context);
 	size_t slot_count = recv_batch_encoder.slot_count();
@@ -50,10 +62,12 @@ Ciphertext crypt_dataset(Receiver recv, EncryptionParameters params)
 	 * the dataset is encrypted using the encryptor class and the obtained dataset is then sent to the sender (returned) 
 	 * */
 	for(size_t index = 0; index < recv_dataset.size(); index++)
-		batch_recv_matrix[index] = stoull(recv_dataset[index], 0, 2);
+		batch_recv_matrix[index] = longint_recv_dataset[index];//stoull(recv_dataset[index], 0, 2);
+	
+	if(recv_dataset.size() > 0) {
 	recv_batch_encoder.encode(batch_recv_matrix, plain_recv_matrix);	// encode the batch matrix
 	encryptor.encrypt(plain_recv_matrix, encrypted_recv_matrix);
-
+	}
 	printf("First step completed\n");
 	return encrypted_recv_matrix;
 }
@@ -68,12 +82,16 @@ Ciphertext crypt_dataset(Receiver recv, EncryptionParameters params)
  * 
  * @return The size of the intersection
  * */
-int decrypt_and_intersect(EncryptionParameters params, Ciphertext sender_computation, Receiver recv)
+vector<string> decrypt_and_intersect(EncryptionParameters params, Ciphertext sender_computation, Receiver recv)
 {
-	SEALContext recv_context(params);     							// this class checks the validity of the parameters set
-	Decryptor recv_decryptor(recv_context, recv.getRecvSk());		// needed to check if everything worked
-	Plaintext plain_result;
 	vector<string> intersection;
+	if(sender_computation.size() == 0){								// safety check before computing the intersection
+		printf("Sender ciphertext size is 0\n");
+		return intersection;
+	}
+	SEALContext recv_context(params);     							// this class checks the validity of the parameters set
+	Decryptor recv_decryptor(recv_context, recv.getRecvSk());	
+	Plaintext plain_result;
 	vector<uint64_t> pod_result;
 
 #ifdef RECV_AUDIT
@@ -96,7 +114,7 @@ int decrypt_and_intersect(EncryptionParameters params, Ciphertext sender_computa
 		print_intersection(intersection);
 	else
 		printf("The intersection between sender and receiver is null \n");
-	return intersection.size();
+	return intersection;
 }
 
 
@@ -126,7 +144,7 @@ Receiver setup_pk_sk(EncryptionParameters params)
 
 
 /** 
- * Pretty print of a nice table :) 
+ * Print the intersection between the dataset, in bistring and int formats 
  *
  * @param intersection Intersection between the two dataset
  * */
