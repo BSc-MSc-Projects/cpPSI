@@ -80,14 +80,19 @@ Ciphertext crypt_dataset(Receiver recv, EncryptionParameters params)
  * @param sender_computation Ciphertext resulting after the homomorphic computation performed by the sender
  * @param recv Receiver class instance containing the secret key used to decrypt the sender computaiton
  * 
- * @return The size of the intersection
+ * @return Result of the computation
  * */
-vector<string> decrypt_and_intersect(EncryptionParameters params, Ciphertext sender_computation, Receiver recv)
+ComputationResult decrypt_and_intersect(EncryptionParameters params, Ciphertext sender_computation, Receiver recv)
 {
 	vector<string> intersection;
+	size_t noise = 0;
+	ComputationResult result;
+	result.setNoiseBudget(noise);
+	result.setIntersection(intersection);
+
 	if(sender_computation.size() == 0){								// safety check before computing the intersection
 		printf("Sender ciphertext size is 0\n");
-		return intersection;
+		return result;
 	}
 	SEALContext recv_context(params);     							// this class checks the validity of the parameters set
 	Decryptor recv_decryptor(recv_context, recv.getRecvSk());	
@@ -114,7 +119,10 @@ vector<string> decrypt_and_intersect(EncryptionParameters params, Ciphertext sen
 		print_intersection(intersection);
 	else
 		printf("The intersection between sender and receiver is null \n");
-	return intersection;
+	
+	result.setIntersection(intersection);
+	result.setNoiseBudget(recv_decryptor.invariant_noise_budget(sender_computation));
+	return result;
 }
 
 

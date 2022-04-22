@@ -23,7 +23,7 @@
 using namespace std;
 using namespace seal;
 
-#define SEND_AUDIT
+//#define SEND_AUDIT
 
 /**
  * Generate a vector of random values that will be used in the homomorphic computation
@@ -95,8 +95,8 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters para
 	size_t slot_count = encoder.slot_count();
 	size_t row_size = slot_count/2;
 
-	RelinKeys send_relin_keys;
-	send_keygen.create_relin_keys(send_relin_keys);
+	/*RelinKeys send_relin_keys;
+	send_keygen.create_relin_keys(send_relin_keys);*/
 		
 	// Compute the first subtraction
 	vector<uint64_t> first_val_matrix(slot_count, longint_sender_dataset[0]);
@@ -108,6 +108,8 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters para
 #ifdef SEND_AUDIT
 	cout << "Size of ct: " << enc_computation[0].size() << endl;
 #endif
+	RelinKeys send_relin_keys;
+	send_keygen.create_relin_keys(send_relin_keys);
 
 	/* For each value of the sender dataset, compute the difference between the matrices. 
 	 * Then, multiply with the previous value to keep up with the polynomial computation */
@@ -121,10 +123,15 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters para
 		encoder.encode(prod_matrix, sub_plain);
 		send_evaluator.sub_plain(recv_ct, sub_plain, sub_encrypted);
 		//send_evaluator.multiply_inplace(d_i, sub_encrypted); 
+		//send_evaluator.relinearize_inplace(enc_computation[index-1], send_relin_keys);
+		//send_evaluator.mod_switch_to_next_inplace(enc_computation[index-1]);
+
 		send_evaluator.multiply(enc_computation[index-1], sub_encrypted, enc_computation[index]); 
-		//send_evaluator.relinearize_inplace(d_i, send_relin_keys);
-		send_evaluator.relinearize_inplace(enc_computation[index], send_relin_keys);
+	//	send_evaluator.relinearize_inplace(d_i, send_relin_keys);
+		//send_evaluator.relinearize_inplace(enc_computation[index], send_relin_keys);
+		//send_evaluator.mod_switch_to_next_inplace(enc_computation[index]);
 #ifdef SEND_AUDIT
+    	//send_evaluator.relinearize_inplace(enc_computation[index], relin_keys);
 		cout << "Size of ct: " << enc_computation[index].size() << endl;
 #endif
 	}
@@ -133,10 +140,12 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters para
 	Plaintext rand_plain;
 	encoder.encode(gen_rand(slot_count, sender_dataset.size()), rand_plain);	
 
+	//RelinKeys send_relin_keys;
+	//send_keygen.create_relin_keys(send_relin_keys);
 	/*send_evaluator.multiply_plain_inplace(d_i, rand_plain); 
 	send_evaluator.relinearize_inplace(d_i, send_relin_keys);*/
 	send_evaluator.multiply_plain(enc_computation[enc_computation.size()-2], rand_plain, enc_computation[enc_computation.size()-1]); 
-	send_evaluator.relinearize_inplace(enc_computation[enc_computation.size()-1], send_relin_keys);
+	//send_evaluator.relinearize_inplace(enc_computation[enc_computation.size()-1], send_relin_keys);
 #ifdef SEND_AUDIT
 	cout << "Size of ct: " << enc_computation[enc_computation.size()-1].size() << endl;
 	printf("Second step completed\n");
