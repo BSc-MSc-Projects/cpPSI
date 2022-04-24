@@ -65,9 +65,10 @@ Ciphertext crypt_dataset(Receiver recv, EncryptionParameters params)
 		batch_recv_matrix[index] = longint_recv_dataset[index];//stoull(recv_dataset[index], 0, 2);
 	
 	if(recv_dataset.size() > 0) {
-	recv_batch_encoder.encode(batch_recv_matrix, plain_recv_matrix);	// encode the batch matrix
-	encryptor.encrypt(plain_recv_matrix, encrypted_recv_matrix);
+		recv_batch_encoder.encode(batch_recv_matrix, plain_recv_matrix);	// encode the batch matrix
+		encryptor.encrypt(plain_recv_matrix, encrypted_recv_matrix);
 	}
+
 	printf("First step completed\n");
 	return encrypted_recv_matrix;
 }

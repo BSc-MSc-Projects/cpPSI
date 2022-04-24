@@ -1,47 +1,206 @@
 \documentclass[12pt]{extarticle}
 \usepackage[english]{babel}
+\usepackage{listings}
+\usepackage{xcolor}
+
+
 
 \title{Network and System Defense Report\\PSI Scheme implementation}
 \author{Caliandro Pierciro - 0299815}
 
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\definecolor{commcolor}{rgb}{0,0.6,0.3}
+\definecolor{codecolor}{rgb}{0,0.3,0.6}
+
+\lstset{
+	backgroundcolor=\color{backcolour},
+    basicstyle = \ttfamily\tiny,
+    commentstyle=\color{commcolor},
+    keywordstyle=\color{codecolor},
+	language = C++,
+	numbers = left,
+	numbersep = 2pt,
+	showtabs=false,
+	stringstyle = \color{green},
+	tabsize=2,
+    %frame=double;
+}
+
+
 \begin{document}
+
 \maketitle
+\tableofcontents
+\newpage
 
-\section{Notes}
-Preliminary notes:
+\section{Introduction}
+The following document summarizes the implementation choices made to build a Private Set Intersection (PSI) scheme using homomorphic encryption.\\
+PSI is a computational problem in which two or more parties what to know the intersection between a certain set of elements that each one of them has, without revealing the content of the whole set each other.\\
+To perform the homomorphic computation, the Microsoft SEAL library was used (link alla libreria), and the scheme built uses two parties, a \textbf{sender} and a \textbf{receiver}.
+\section{PSI scheme overview}
+The assumption made are the following:
 \begin{itemize}
-	\item Scheme depth for the arithmetic computation, in this scenario $\prod\limits_{i \in S} c_j \cdot s_i$, can make the invariant noise used by the BFV scheme (even CKKS one) became 0, which leads to corrupted ciphertext that cannot be decrypted.\\So, it is very important to consider carefully the size of the scheme's parameters that are used in the application;
-	\item the first important trade-off is on the polynomial modulus degree value: this should be a value that is a power of 2, the larger the value, the bigger will be the ciphertext and so the slower will be the operations. So, it depends on the size of the polynomial that we want to evaluate, that is strictly correlated to the size of the dataset (consider that 4096 is almost the 'bare minimum' to have computations that are not restrictive);
-	\item the coefficient modulus can be set by default;
-	\item the plaintext modulus is also important because it defines the size of the plaintext and so: 
-		\begin{itemize}
-			\item how fast the computation is;
-			\item the consumption of budget noise during multiplication;
-		\end{itemize}
-		The noise budget in a freshly encrypted ciphertext is $\propto$ log2(coeff\_mod/plain\_mod) (bits), while the noise budget cosumption in a homomorphic multiplication (that is the "heavier" operation that we perform in this scheme) is $\propto$ log2(plain\_mod) + (other terms). This parameter is specific for this scheme;
-	\item relinerization helps to keep the size of the ciphertext small (can only pass from 3 size to 2 size);
-	\item 
+	\item the receiver and the sender has their private sets S$_r$ and S$_s$, of sizes respectively N$_r$ and N$_s$;
+	\item each set is composed of bitstrings of length $\sigma$;
+	\item the values N$_r$, N$_s$ and $\sigma$ are public and known;
 \end{itemize}
+PSI scheme is composed of 3 main steps:
+\begin{enumerate}
+	\item \textbf{setup}
+	\item \textbf{element encryption}
+	\item \textbf{intersection computation}
+\end{enumerate}
+\subsection{Setup phase}
+In this step, the sender and the receiver agrees on a fully homomorphic scheme.\\
+Inside the code, there is not a "real" agreement using the network or something else, the agreement is made in the \texttt{src/main/main.cpp} file where the parameters for the scheme are decided. In particular, SEAL offers two main schemes:
+\begin{itemize}
+	\item BFV, that can perform addition and multiplication on integers;
+	\item CKKS, used mainly to perform multiplication on real numbers;
+\end{itemize}
+The choice in this case is to use BFV scheme, which can be "summarized" into 3 main parameters that one needs to set up for the \texttt{EncryptionParameters} class:
+\begin{itemize}
+	\item degree of the polynomial modulus (spiegare cos'è): this parameter must be a power of 2, and represents the degree of a power-of-two cyclotomic polynomial. The larger this value is, the more complicated the encryption operations that can be performed, but also the size of the resulting ciphertext will be higher;
+	\item ciphertext coefficient modulus (anche qui spiegare): this value is a product of distinct prime numbers, each up to 60 bits. The choice of this parameter implies larger noise.\\
+	To choose this parameter, it is possible to use a facility of the library that sets a suited value, by relying on 
+		\begin{lstlisting}
+			CoeffModulus::BFVDefault(poly_modulus_degree);
+		\end{lstlisting}
+	where the \texttt{poly\_modulus\_degree} is the value of [1];
+	\item plaintext modulus, specific for the BFV scheme. In this case, it is set using 
+        \begin{lstlisting}
+        params.set_plain_modulus(PlainModulus::Batching(poly_mod_degree, 20));
+        \end{lstlisting}
+\end{itemize}
+After choosing these parameters, the receiver proceeds to generate a pair of public /private keys that will be used to encrypt and decrypt the data.\\
+Since the keys will be required for the receiver in following steps, the keys (as the receiver dataset) have been saved in a suited class:
+\newpage
+\begin{lstlisting}
+class Receiver
+{
+public:
+	void setRecvDataset(vector<string> dataset){ 
+		this->recv_dataset = dataset;
+		if (dataset.size() > 0)
+			setBitsSize(dataset[0].length());
+	}
+	void setRecvSk(SecretKey sk){ this->recv_sk = sk; } 
+	void setRecvPk(PublicKey pk){ this->recv_pk = pk; }
+	void setBitsSize(long size) { this->bits_size = size; }
+	
+	SecretKey getRecvSk(){ return this->recv_sk; } 
+	PublicKey getRecvPk(){ return this->recv_pk; } 
+	vector<string> getRecvDataset(){ return this->recv_dataset; }
+	long getDatasetSize(){ return this->bits_size; }
 
+private:
+	SecretKey recv_sk;
+	PublicKey recv_pk;
+	vector<string> recv_dataset;
+	long bits_size;
+};
+\end{lstlisting}
+After the key generation, the receiver dataset is opened from the file (\texttt{src/dataset/receiver.csv}) and encrypted by the receiver.\\To do so, the dataset is treated as a vector of \texttt{uint64\_t}, using the \textbf{batch encoding} technique offered by the library.\\
+So, encryption operation is performed on the whole matrix, and the resulting ciphertext is passed to the sender
 
+\subsection{Element encryption}
+In this phase, suppose that the sender receives the encrypted ciphertext from the receiver, which is a matrix where each entry is one of the encrypted values, c$_i$.\\What the sender has to do is computing the intersection between its dataset and the receiver's one, as follows:
+\begin{itemize}
+    \item generate a random, non-zero, value r$_i$;
+    \item homomorphically computes:
+        \begin{equation}
+            d_i = r_i \cdot \sum\limits_{s' \in S'} (c_i - s') 
+        \end{equation}
+    where S' is sender's dataset
+\end{itemize}
+so in the end, the sender will produce another encrypted matrix d$_i$, the code to do so is the following:
+\newpage
+\begin{lstlisting}
+BatchEncoder encoder(send_context);
+size_t index;
+size_t slot_count = encoder.slot_count();
+size_t row_size = slot_count/2;
 
+// Compute the first subtraction
+vector<uint64_t> first_val_matrix(slot_count, longint_sender_dataset[0]);
+Plaintext first_plain;
+encoder.encode(first_val_matrix, first_plain);
+		
+send_evaluator.sub_plain(recv_ct, first_plain, d_i);	// homomorphic computation of c_i - s_j
 
+/* For each value of the sender dataset, compute the difference between the matrices. 
+ * Then, multiply with the previous value to keep up with the polynomial computation */
+for(long index = 1; index < sender_dataset.size(); index++){
+	vector<uint64_t> prod_matrix(slot_count, longint_sender_dataset[index]);
+	Plaintext sub_plain;
+	Ciphertext sub_encrypted; 
+	Ciphertext prod_ecnrypted;
+	encoder.encode(prod_matrix, sub_plain);
+	send_evaluator.sub_plain(recv_ct, sub_plain, sub_encrypted);
+	send_evaluator.multiply(d_i, sub_encrypted, d_i);
+}
+		
+// Finally, multiply for the random value
+Plaintext rand_plain;
+encoder.encode(gen_rand(slot_count, sender_dataset.size()), rand_plain);	
+\end{lstlisting}
 
+\subsection{Intersection computation}
+In the last step, the receiver gets the homomorphic computation of the sender, and can compute the intersection between the dataset:
+\begin{equation}
+    I = N_r \cap N_s = \{n_r: \textbf{Decrypt}(\textbf{sk}, d_i) = 0\}
+\end{equation}
+So, it can know which elements belong to the intersection without knowing the full set of the sender.\\
+The multiplication for a random value will avoid any hint about the element not belonging to that intersection.
 
+\section{Results and limitations}
+Tests for the scheme are in the file \texttt{src/test/test.cpp}: in particular, the aim of the test is:
+\begin{itemize}
+    \item verify that the scheme is working properly. To do so, the dataset for sender and receiver are created inside the file, and the intersection is computed and stored. So,the test will assert that the intersection computed by the receiver and the saved one are the same;
+    \item furthermore, some data for the test as gathered, such as:
+        \begin{itemize}
+            \item the time needed to complete the full scheme;
+            \item the resulting noise after the computation;
+            \item the parameter of the scheme, in terms of the \texttt{poly\_modulus\_degree} 
+        \end{itemize}
+\end{itemize}
+data obtained are summarized in the following table:\\
+\begin{table}[h]
+    \begin{tabular}{||c|c|c|c|c||}
+    	\hline
+        Modulus length & Bitstring size	& Dataset size	& Computation Time	& Remaining noise\\
+        \hline\hline
+        8192 & 24 & 4 & 2,56265 & 24\\
+        \hline
+        8192 & 24 & 6 & 4,62703	& 0 \\
+        \hline
+        8192 & 24 & 8 & 7,2227 & 0 \\
+        \hline
+        8192 & 24 & 10 & 10,2784 & 0 \\
+        \hline
+    \end{tabular}
+	\caption{Test result for polynomial modulus degree of 8192 bit}
+\end{table}
 
-
-
-
-
-
-
-
-
-
-
-
+\begin{table}[h]
+	\begin{tabular}{||c|c|c|c|c||}
+		\hline
+		Modulus length & Bitstring size	& Dataset size	& Computation Time	& Remaining noise\\
+		\hline\hline
+		16384 & 24 & 4 & 10,7762 & 237\\
+		\hline
+		16384 & 24 & 6 & 18,7084 & 170 \\
+		\hline
+		16384 & 24 & 8 & 29,1682 & 103 \\
+		\hline
+		16384 & 24 & 10 & 41,6273 & 35 \\
+		\hline
+	\end{tabular}
+\caption{Test result for polynomial modulus degree of 16384 bit}
+\end{table}
+The clear limitation shown by the data result is in the invariant noise: even with a smaller dataset, for a modulus of size 8192, the noise goes soon to 0 meaning that it will be not possible for the receiver to decrypt the result correctly.\\Increasing the modulus size allows to treat a larger dataset, but the performance are badly affected.\\The library presents different examples that combines also other homomorphic schemes (such as the BGV one) but are much more complicated and requires a deeper knowledge of the library code, for example to choose a more suited value for the coefficient module manually.
 
 
 
 
 \end{document}
+

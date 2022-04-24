@@ -169,7 +169,7 @@ int main (int argc, char *argv[])
 {
 	vector<PsiTestClass> test_class_vector;
 	vector<int> n_entries = {4,6,8,10};
-	int string_lengths = 24;
+	int string_lengths = 5;
 	int num_intersects = 4;
 	vector<size_t> poly_mod_degrees = {4096, 8192, 16384};
 	ComputationResult result;				// result of the computation

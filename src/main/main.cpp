@@ -25,22 +25,25 @@ int main (int argc, char *argv[])
 		return -1;
 	}
 	/* For simpicity, the agreement between sender and receiver is supposed to be done here */
+	//EncryptionParameters params(scheme_type::bfv);	// set up the encryption scheme
 	EncryptionParameters params(scheme_type::bfv);	// set up the encryption scheme
 
 	/* The poly modulus degree, one of the critical parameters to choose. The higher it is, the slower the operations will be but 
 	 * more complicated operations will be supported. Recommended values are: 
 	 * 						1024, 2048, 4096, 8192, 16384, ..., 32768 
 	 * */
+
 	size_t poly_mod_degree = 16384;
 	params.set_poly_modulus_degree(poly_mod_degree);
 
-	/* Set up the coeff modulus, using the general good choice given the value of the poly mod degree */
+	// Set up the coeff modulus, using the general good choice given the value of the poly mod degree
 	params.set_coeff_modulus(CoeffModulus::BFVDefault(poly_mod_degree));
 	//params.set_plain_modulus(1024);				// only for the BFV scheme
 	
-	/* Batch encoding to speed up the computation and obtain better performance*/
+	// Batch encoding to speed up the computation and obtain better performance
+	//params.set_plain_modulus(PlainModulus::Batching(poly_mod_degree, 20));
+	//params.set_coeff_modulus(CoeffModulus::Create(poly_mod_degree, { 50, 30, 30, 50, 50 }));
 	params.set_plain_modulus(PlainModulus::Batching(poly_mod_degree, 20));
-
 	
 	/* Set up an instance of Receiver class, that will be used to keep the public/secret keys and passed to the receiver functions
 	 * for encryption/decryption
