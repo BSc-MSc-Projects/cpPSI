@@ -24,6 +24,8 @@ using namespace std;
 using namespace seal;
 
 //#define SEND_AUDIT
+#define RELIN
+
 
 /**
  * Generate a vector of random values that will be used in the homomorphic computation
@@ -61,15 +63,15 @@ vector<uint64_t> gen_rand(size_t slot_count, size_t dataset_size)
  * */
 Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters params, vector<string> sender_dataset)
 {
-	Ciphertext d_i; 											// the final result
-	//vector<Ciphertext> enc_computation(sender_dataset.size()+1);	// this will keep up the computation 
+	//Ciphertext d_i; 											// the final result
+	vector<Ciphertext> enc_computation(sender_dataset.size());	// this will keep up the computation 
 	
 	if (sender_dataset.size() == 0 || recv_ct.size() == 0){
 #ifdef SEND_AUDIT
 		printf("Sender: an error occurred, cannot go on with the computation\n");
 #endif
-		return d_i;
-		//return enc_computation[0]; 
+		//return d_i;
+		return enc_computation[0]; 
 	}
 
 	vector<uint64_t> longint_sender_dataset = bitstring_to_long_dataset(sender_dataset);
@@ -77,8 +79,8 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters para
 #ifdef SEND_AUDIT
 		printf("Sender dataset is malformed\n");
 #endif
-		return d_i;
-		//return enc_computation[0]; 
+		//return d_i;
+		return enc_computation[0]; 
 	}	
 
 	SEALContext send_context(params);							// this class checks the validity of the parameters set
@@ -87,10 +89,13 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters para
 	Evaluator send_evaluator(send_context);	
 	KeyGenerator send_keygen(send_context);
 	
+    RelinKeys send_relin_keys;
+	send_keygen.create_relin_keys(send_relin_keys);
+	
 	/* Here we evaluate the polynomial expressed at the top of this file. It is the PSI scheme polynomial, that has to be computed 
 	 * for each element of the received dataset 
 	 * */
-	BatchEncode encoder(send_context);
+	BatchEncoder encoder(send_context);
 	size_t index;
 	size_t slot_count = encoder.slot_count();
 	size_t row_size = slot_count/2;
@@ -100,36 +105,38 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters para
 	Plaintext first_plain;
 	encoder.encode(first_val_matrix, first_plain);
 		
-	send_evaluator.sub_plain(recv_ct, first_plain, d_i);	// homomorphic computation of c_i - s_j
-	//send_evaluator.sub_plain(recv_ct, first_plain, enc_computation[0]);	// homomorphic computation of c_i - s_j
-#ifdef SEND_AUDIT
-	cout << "Size of ct: " << enc_computation[0].size() << endl;
-#endif
-	RelinKeys send_relin_keys;
-	send_keygen.create_relin_keys(send_relin_keys);
+	//send_evaluator.sub_plain(recv_ct, first_plain, d_i);	// homomorphic computation of c_i - s_j
+	send_evaluator.sub_plain(recv_ct, first_plain, enc_computation[0]);	// homomorphic computation of c_i - s_j
 
 	/* For each value of the sender dataset, compute the difference between the matrices. 
-	 * Then, multiply with the previous value to keep up with the polynomial computation */
+	 * Then, multiply with the previous value to keep up with the polynomial computation 
+     * */
 	for(long index = 1; index < sender_dataset.size(); index++){
-		vector<uint64_t> prod_matrix(slot_count, longint_sender_dataset[index]);//stoull(sender_dataset[index], 0, 2));
-		
+		vector<uint64_t> prod_matrix(slot_count, longint_sender_dataset[index]);
 		Plaintext sub_plain;
 		Ciphertext sub_encrypted; 
-		Ciphertext prod_ecnrypted;
+		//Ciphertext prod_ecnrypted;
 		encoder.encode(prod_matrix, sub_plain);
 		send_evaluator.sub_plain(recv_ct, sub_plain, sub_encrypted);
-		send_evaluator.multiply(d_i, sub_encrypted, d_i);
-		//send_evaluator.multiply(enc_computation[index-1], sub_encrypted, enc_computation[index]); 
-	}
+		//send_evaluator.relinearize_inplace(sub_encrypted, send_relin_keys);
+        //send_evaluator.multiply(d_i, sub_encrypted, d_i);
+		send_evaluator.multiply(enc_computation[index-1], sub_encrypted, enc_computation[index]);
+	    //send_evaluator.relinearize_inplace(d_i, send_relin_keys);
+	    send_evaluator.relinearize_inplace(enc_computation[index], send_relin_keys);
+    }
 		
 	// Finally, multiply for the random value
 	Plaintext rand_plain;
 	encoder.encode(gen_rand(slot_count, sender_dataset.size()), rand_plain);	
 
-	//send_evaluator.multiply_plain(enc_computation[enc_computation.size()-2], rand_plain, enc_computation[enc_computation.size()-1]); 
-	send_evaluator.multiply_plain(d_i, rand_plain, d_i); 
+	//send_evaluator.multiply_plain_inplace(d_i, rand_plain);
+	send_evaluator.multiply_plain_inplace(enc_computation[enc_computation.size()-1], rand_plain);
+	//send_evaluator.multiply_plain(d_i, rand_plain, d_i);
+    //send_evaluator.relinearize_inplace(d_i, send_relin_keys);
+    //send_evaluator.relinearize_inplace(enc_computation[enc_computation.size()-1], send_relin_keys);
 	printf("Second step completed\n");
-
-	return d_i;
-	//return enc_computation[enc_computation.size()-1];
+    
+    cout << "Size: " << enc_computation[enc_computation.size()-1].size() << endl;
+	//return d_i;
+	return enc_computation[enc_computation.size()-1];
 }

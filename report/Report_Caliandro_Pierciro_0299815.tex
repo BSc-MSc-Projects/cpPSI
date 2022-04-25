@@ -1,8 +1,10 @@
-\documentclass[12pt]{extarticle}
+\documentclass[10pt]{extarticle}
 \usepackage[english]{babel}
 \usepackage{listings}
 \usepackage{xcolor}
-
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{biblatex}
 
 
 \title{Network and System Defense Report\\PSI Scheme implementation}
@@ -23,7 +25,6 @@
 	showtabs=false,
 	stringstyle = \color{green},
 	tabsize=2,
-    %frame=double;
 }
 
 
@@ -36,37 +37,42 @@
 \section{Introduction}
 The following document summarizes the implementation choices made to build a Private Set Intersection (PSI) scheme using homomorphic encryption.\\
 PSI is a computational problem in which two or more parties what to know the intersection between a certain set of elements that each one of them has, without revealing the content of the whole set each other.\\
-To perform the homomorphic computation, the Microsoft SEAL library was used (link alla libreria), and the scheme built uses two parties, a \textbf{sender} and a \textbf{receiver}.
+To perform the homomorphic computation, the \href{https://github.com/Microsoft/SEAL}{Microsoft SEAL library} was used and the scheme built is made of two parties, a \textbf{sender} and a \textbf{receiver}.
 \section{PSI scheme overview}
 The assumption made are the following:
 \begin{itemize}
-	\item the receiver and the sender has their private sets S$_r$ and S$_s$, of sizes respectively N$_r$ and N$_s$;
+	\item the receiver and the sender has their private sets D$_r$ and D$_s$, of sizes respectively N$_r$ and N$_s$;
 	\item each set is composed of bitstrings of length $\sigma$;
 	\item the values N$_r$, N$_s$ and $\sigma$ are public and known;
 \end{itemize}
+
 PSI scheme is composed of 3 main steps:
 \begin{enumerate}
 	\item \textbf{setup}
 	\item \textbf{element encryption}
 	\item \textbf{intersection computation}
 \end{enumerate}
+
 \subsection{Setup phase}
 In this step, the sender and the receiver agrees on a fully homomorphic scheme.\\
-Inside the code, there is not a "real" agreement using the network or something else, the agreement is made in the \texttt{src/main/main.cpp} file where the parameters for the scheme are decided. In particular, SEAL offers two main schemes:
+Inside the code, there is not a "real" agreement using the network or something else, the agreement is made in the \texttt{src/main/main.cpp} file where the parameters for the scheme are decided. In particular, the scheme used is BFV. This scheme cannot perform arbitrary computations on encrypted data. In fact, each ciphertext has a specific quantity that is called \textbf{invariant noise budget}, measured in bits, which depends on the choice of the scheme's parameters and is consumed in homomorphic operations.\\Once this noise budget reaches 0, the resulting ciphertext is corrupted and so it is not possible to obtain the correct result in decryption.\\The 3 main parameters that one needs to set up in the \texttt{EncryptionParameters} class for the scheme are:
 \begin{itemize}
-	\item BFV, that can perform addition and multiplication on integers;
-	\item CKKS, used mainly to perform multiplication on real numbers;
-\end{itemize}
-The choice in this case is to use BFV scheme, which can be "summarized" into 3 main parameters that one needs to set up for the \texttt{EncryptionParameters} class:
-\begin{itemize}
-	\item degree of the polynomial modulus (spiegare cos'è): this parameter must be a power of 2, and represents the degree of a power-of-two cyclotomic polynomial. The larger this value is, the more complicated the encryption operations that can be performed, but also the size of the resulting ciphertext will be higher;
-	\item ciphertext coefficient modulus (anche qui spiegare): this value is a product of distinct prime numbers, each up to 60 bits. The choice of this parameter implies larger noise.\\
+	\item degree of the polynomial modulus: this parameter must be a power of 2, and represents the degree of a power-of-two cyclotomic polynomial. The larger this value is, the more complicated the encryption operations that can be performed, but also the size of the resulting ciphertext will be higher;
+	\item ciphertext coefficient modulus: this value is a product of distinct prime numbers, each up to 60 bits. The choice of this parameter implies larger noise budget, but there is an upper bound determined by the polynomial modulus degree.\\
 	To choose this parameter, it is possible to use a facility of the library that sets a suited value, by relying on 
 		\begin{lstlisting}
 			CoeffModulus::BFVDefault(poly_modulus_degree);
 		\end{lstlisting}
 	where the \texttt{poly\_modulus\_degree} is the value of [1];
-	\item plaintext modulus, specific for the BFV scheme. In this case, it is set using 
+	\item plaintext modulus, specific for the BFV scheme. This parameter determines the size of the plaintext data type and the consumption of noise budget, so it is essential to try t keep the data type for the plaintext smaller for better performance.\\The noise budget in a freshly encrypted ciphertext is:
+	\begin{equation}
+		\approx log_2(\tfrac{coefficient\_modulus}{plaintext\_modulus})
+	\end{equation}
+	and the noise consumption in a homomorphic multiplication is 
+	\begin{equation}
+		log_2(plaintext\_modulus) + \text{other terms}
+	\end{equation}
+	The choice was to use Batch Encoding, that allows to represent data in matrix form, resulting in better performance since the operations are made on each slot of the matrix.\\For batch mode, the plaintext modulus can be set by:
         \begin{lstlisting}
         params.set_plain_modulus(PlainModulus::Batching(poly_mod_degree, 20));
         \end{lstlisting}
@@ -99,8 +105,7 @@ private:
 	long bits_size;
 };
 \end{lstlisting}
-After the key generation, the receiver dataset is opened from the file (\texttt{src/dataset/receiver.csv}) and encrypted by the receiver.\\To do so, the dataset is treated as a vector of \texttt{uint64\_t}, using the \textbf{batch encoding} technique offered by the library.\\
-So, encryption operation is performed on the whole matrix, and the resulting ciphertext is passed to the sender
+After the key generation, the receiver dataset is opened from the file (\texttt{src/dataset/receiver.csv}) and encrypted by the receiver.\\To do so, the dataset is treated as a vector of \texttt{uint64\_t}, which will be interpreted as a matrix. This matrix is encrypted and the resulting ciphertext is passed to the sender.
 
 \subsection{Element encryption}
 In this phase, suppose that the sender receives the encrypted ciphertext from the receiver, which is a matrix where each entry is one of the encrypted values, c$_i$.\\What the sender has to do is computing the intersection between its dataset and the receiver's one, as follows:
@@ -108,9 +113,9 @@ In this phase, suppose that the sender receives the encrypted ciphertext from th
     \item generate a random, non-zero, value r$_i$;
     \item homomorphically computes:
         \begin{equation}
-            d_i = r_i \cdot \sum\limits_{s' \in S'} (c_i - s') 
+            d_i = r_i \cdot \sum\limits_{n_s \in D_s} (c_i - n_s) 
         \end{equation}
-    where S' is sender's dataset
+    where D$_s$ is sender's dataset
 \end{itemize}
 so in the end, the sender will produce another encrypted matrix d$_i$, the code to do so is the following:
 \newpage
@@ -147,7 +152,7 @@ encoder.encode(gen_rand(slot_count, sender_dataset.size()), rand_plain);
 \subsection{Intersection computation}
 In the last step, the receiver gets the homomorphic computation of the sender, and can compute the intersection between the dataset:
 \begin{equation}
-    I = N_r \cap N_s = \{n_r: \textbf{Decrypt}(\textbf{sk}, d_i) = 0\}
+    I = D_r \cap D_s = \{n_r: \textbf{Decrypt}(\textbf{sk}, d_i) = 0\}
 \end{equation}
 So, it can know which elements belong to the intersection without knowing the full set of the sender.\\
 The multiplication for a random value will avoid any hint about the element not belonging to that intersection.
@@ -155,7 +160,7 @@ The multiplication for a random value will avoid any hint about the element not 
 \section{Results and limitations}
 Tests for the scheme are in the file \texttt{src/test/test.cpp}: in particular, the aim of the test is:
 \begin{itemize}
-    \item verify that the scheme is working properly. To do so, the dataset for sender and receiver are created inside the file, and the intersection is computed and stored. So,the test will assert that the intersection computed by the receiver and the saved one are the same;
+    \item verify that the scheme is working properly. To do so, the dataset for sender and receiver are created inside the file, and the intersection is computed and stored. To simplify, the size of both dataset is the same.\\The test will assert that the intersection computed by the receiver and the saved one are the same;
     \item furthermore, some data for the test as gathered, such as:
         \begin{itemize}
             \item the time needed to complete the full scheme;
@@ -197,7 +202,10 @@ data obtained are summarized in the following table:\\
 	\end{tabular}
 \caption{Test result for polynomial modulus degree of 16384 bit}
 \end{table}
-The clear limitation shown by the data result is in the invariant noise: even with a smaller dataset, for a modulus of size 8192, the noise goes soon to 0 meaning that it will be not possible for the receiver to decrypt the result correctly.\\Increasing the modulus size allows to treat a larger dataset, but the performance are badly affected.\\The library presents different examples that combines also other homomorphic schemes (such as the BGV one) but are much more complicated and requires a deeper knowledge of the library code, for example to choose a more suited value for the coefficient module manually.
+The clear limitation shown by the data result is in the invariant noise: even with a small dataset, for a modulus of size 8192, the noise goes soon to 0 meaning that it will be not possible for the receiver to decrypt the result correctly.\\Increasing the modulus size allows to treat a larger dataset, but the performance are badly affected.\\The whole implementation was derived on the basis of the examples offered by the library itself, which unfortunately does not have any further documentation, for example to choose a more suited value for the coefficient module or the plaintext modulus manually, so it would be necessary a deeper knowledge of the source code.
+
+
+
 
 
 
