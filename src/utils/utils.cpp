@@ -13,11 +13,11 @@ using namespace std;
 uint64_t max_size = 64UL;
 
 /**
- * Helper function that open the dataset of the dataset and convert each value 
+ * Helper function that opens a dataset and converts each value 
  *
- * @param path Dataset path
+ * @param path  Dataset path
  *
- * @return vector of strings
+ * @return      Vector of strings
  * */
 vector<string> convert_dataset(string path)
 {
@@ -30,25 +30,26 @@ vector<string> convert_dataset(string path)
 #ifdef  AUDIT
 		cout << "cannot open file with path: " << path << endl;
 #endif 
-		return conv_dataset;																	// return an empty dataset
+		return conv_dataset;
 	}
 	string dataset_line;
 	
 	while(getline(dataset, dataset_line))
-		conv_dataset.push_back(dataset_line.substr(0, min(max_size, dataset_line.length())));		// cut the final '\n' character
+		conv_dataset.push_back(dataset_line.substr(0, min(max_size, dataset_line.length())));
 	
-	dataset.close();																			// close the resource
+	dataset.close();
 	return conv_dataset;	
 }
 
 
-/** Helper function to convert a dataset of plain bitstrings into uint_64
- *  An exception can be raised (and catch) if the bitstring is not valid and it 
- *  causes the impossibilty to convert it into an integer
+/** 
+ * Helper function to convert a dataset of plain bitstrings into uint_64
+ * An exception can be raised (and catch) if the bitstring is not valid and it 
+ * causes the impossibilty to convert it into an integer
  *
- * 	@param dataset String dataset, each string is expressed in bits 
+ * @param dataset   String dataset, each string is expressed in bits 
  * 
- *  @return vector on uint64_t
+ * @return          Vector on uint64_t
  * */
 vector<uint64_t> bitstring_to_long_dataset(vector<string> dataset)
 {

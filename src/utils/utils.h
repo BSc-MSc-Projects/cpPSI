@@ -10,8 +10,11 @@ using namespace seal;
 vector<string> convert_dataset(string path);
 vector<uint64_t> bitstring_to_long_dataset(vector<string> dataset);
 
-// Usefull class definition 
 
+/** 
+ * Recevier class, used to save public/private keys and the dataset that will be used 
+ * to check which strings belong to the intersection 
+ * */
 class Receiver
 {
 public:
@@ -22,16 +25,19 @@ public:
 	}
 	void setRecvSk(SecretKey sk){ this->recv_sk = sk; } 
 	void setRecvPk(PublicKey pk){ this->recv_pk = pk; }
+    void setRelinKeys(RelinKeys relin_keys) { this->relin_keys = relin_keys; }
 	void setBitsSize(long size) { this->bits_size = size; }
 	
 	SecretKey getRecvSk(){ return this->recv_sk; } 
-	PublicKey getRecvPk(){ return this->recv_pk; } 
+	PublicKey getRecvPk(){ return this->recv_pk; }
+    RelinKeys getRelinKeys() { return this->relin_keys; }
 	vector<string> getRecvDataset(){ return this->recv_dataset; }
 	long getDatasetSize(){ return this->bits_size; }
 
 private:
 	SecretKey recv_sk;
 	PublicKey recv_pk;
+    RelinKeys relin_keys;
 	vector<string> recv_dataset;
 	long bits_size;
 };

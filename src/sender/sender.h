@@ -5,4 +5,5 @@
 using namespace std;
 using namespace seal;
 
-Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters params, vector<string> sender_dataset);
+Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters params, vector<string> sender_dataset, 
+        RelinKeys send_relin_keys);
