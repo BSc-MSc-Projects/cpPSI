@@ -13,8 +13,9 @@
 #include <ratio>
 #include <filesystem>
 
-#include "../sender/sender.h"
-#include "../receiver/receiver.h"
+#include "../lib/sender.h"
+#include "../lib/receiver.h"
+
 
 string recv_path = "src/dataset/receiver.csv";
 string send_path = "src/dataset/sender.csv";
@@ -55,47 +56,6 @@ private:
 };
 
 
-/** Write bitstrings in a given dataset 
- *
- * @param n_entries 		Number of bitstrings in each dataset 
- * @param string_length 	Lenght of each bitstring
- * @param n_intersect 		Number of bitstrings that will be in the intersection between the datasets
- * @param path				Path for the file
- * @param prev_intersect	vector containing the eventual strings that will belong to the intersection
- * 
- * @return 					The strings that will belong to the intersection
- * */
-vector<string> write_on_file(int n_entries, int string_length, int n_intersect, string path, 
-        vector<string> prev_intersect)
-{
-	vector<string> intersection;
-	string bitstring = "";
-	ofstream ds_steam(path);
-	
-	if(ds_steam.is_open()){
-		for(int i = 0; i < n_entries - prev_intersect.size(); i++){
-			for(int j = 0; j < string_length; j++)
-				bitstring += to_string(rand()%2);
-			
-			bitstring += '\n';
-			if(i < n_intersect)
-				intersection.push_back(bitstring);
-			ds_steam << bitstring;
-			bitstring = "";
-		}
-		
-		for(int i = 0; i < prev_intersect.size(); i++)
-			ds_steam << prev_intersect[i];
-		
-		ds_steam.close();
-	}
-	else
-		printf("Cannot open file\n");
-	
-	return intersection;
-}
-
-
 /** Generate both sender and receiver datasets to run the tests 
  *
  * @param n_entries 		Number of bitstrings in each dataset 
@@ -129,8 +89,8 @@ int check_result(vector<string> expected, vector<string> actual)
 	
 	int result = -1;
 	bool found = false;
-	for (string s_a : actual){
-		for(string s_e : expected){
+	for(string s_e : expected){
+	    for (string s_a : actual){
 			if(s_e.substr(0, s_e.length()-1).compare(s_a) == 0){
 				found = true;
 				break;
@@ -174,7 +134,7 @@ int main (int argc, char *argv[])
 {
 	vector<PsiTestClass> test_class_vector;
 	vector<int> n_entries = {4,6,8,10};
-	int string_lengths = 24;
+	int string_lengths = 4;
 	int num_intersects = 4;
 	vector<size_t> poly_mod_degrees = {8192, 16384};
 	ComputationResult result;				                                        // result of the computation

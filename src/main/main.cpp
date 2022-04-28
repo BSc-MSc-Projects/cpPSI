@@ -9,8 +9,8 @@
 #include <list>
 #include <vector>
 
-#include "../sender/sender.h"
-#include "../receiver/receiver.h"
+#include "../lib/sender.h"
+#include "../lib/receiver.h"
 
 
 using namespace std;
@@ -21,7 +21,7 @@ using namespace seal;
 int main (int argc, char *argv[])
 {
 	if (argc < 3){
-		printf("Usage: prog file path of receiver file path of sender file");
+		printf("Usage:\n - prog file\n - path of receiver file\n -path of sender file");
 		return -1;
 	}
 	/* For simpicity, the agreement between sender and receiver is supposed to be done here */

@@ -20,8 +20,9 @@
 #include <random>
 #include <limits>
 #include <climits>
+
 #include "seal/seal.h"
-#include "../utils/utils.h"
+#include "utils.h"
 
 
 using namespace std;

@@ -1,7 +1,7 @@
 #include <list> 
 #include <vector>
 
-#include "../utils/utils.h"
+#include "utils.h"
 #include <seal/seal.h>
 
 

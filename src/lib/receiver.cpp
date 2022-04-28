@@ -15,7 +15,7 @@
 #include <bitset>
 #include <algorithm>
 
-#include "../utils/utils.h"
+#include "utils.h"
 #include "seal/seal.h"
 
 using namespace std;
