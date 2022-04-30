@@ -7,6 +7,8 @@
 #include <fstream>
 #include <algorithm>
 
+#include "utils.h"
+
 using namespace std;
 
 #define AUDIT
@@ -110,15 +112,35 @@ vector<string> write_on_file(int n_entries, int string_length, int n_intersect, 
 }
 
 
-void print_start_computation()
+/** 
+ * Print a line on the screen
+ * */
+void print_line()
 {
-    int first_line_size = 20;
+    int line_size = 30;
     int i;
-    string first_line = "";
-    for(i = 0; i < first_line_size; i++)
-        first_line += "-*";
-    first_line += "*";
-    cout << first_line << endl;
-    printf("Running with the following parameters:\n");
-    cout << "Modulus size | " << "Sender set size | " << "Receiver set size" << endl; 
+    string line = "";
+    for(i = 0; i < line_size; i++)
+        line += "*--";
+    line += "*";
+    cout << line << endl;
+}
+
+
+/** 
+ * Print a sort of banner that delimits each run of the program. It also prints the parameters for 
+ * the current run 
+ *
+ * @param params PsiParams object that contains information to print 
+ * */
+void print_start_computation(PsiParams params)
+{
+    print_line();
+    printf("\n");
+    string table_line(40, '-');
+    table_line = "|" + table_line + "|";
+    printf(" Running with the following parameters:\n");
+    cout << table_line << endl;
+    cout << " Modulus size: " << params.getPolyModDegree() << "\n" << table_line+"\n" << " Sender set size: " << params.getSendNumEntries() << "\n" << table_line+"\n" << " Receiver set size: " << params.getRecvNumEntries() << "\n" << table_line << endl;
+    printf("\n\n");
 }

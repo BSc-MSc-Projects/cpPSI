@@ -94,9 +94,7 @@ ComputationResult decrypt_and_intersect(EncryptionParameters params, Ciphertext 
 {
 	vector<string> intersection;
 	size_t noise = 0;
-	ComputationResult result;
-	result.setNoiseBudget(noise);
-	result.setIntersection(intersection);
+	ComputationResult result(noise, intersection);
 
 	if(sender_computation.size() == 0){								// sanity check before computing the intersection
 		printf("Sender ciphertext size is 0\n");
