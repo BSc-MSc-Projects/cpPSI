@@ -30,7 +30,6 @@ using namespace seal;
 
 
 #define SEND_AUDIT
-//#define RELIN
 
 
 /**
@@ -122,9 +121,7 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters para
         // Subtract, multiply and relinearize the result to keep the size of the ciphertext = 2
 		send_evaluator.sub_plain(recv_ct, sub_plain, sub_encrypted);
         send_evaluator.multiply_inplace(d, sub_encrypted);
-#ifdef RELIN
 	    send_evaluator.relinearize_inplace(d, send_relin_keys);
-#endif
     }
 		
 	// Finally, multiply for the random value
@@ -132,11 +129,11 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters para
 	encoder.encode(gen_rand(slot_count, sender_dataset.size()), rand_plain);	
 
 	send_evaluator.multiply_plain_inplace(d, rand_plain);
-#ifdef RELIN
 	send_evaluator.relinearize_inplace(d, send_relin_keys);
-#endif
 	
+#ifdef SEND_AUDIT
     printf("Second step completed\n");
-    
+#endif
+
 	return d;
 }

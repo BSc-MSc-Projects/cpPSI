@@ -1,6 +1,0 @@
-{
-    "poly_mod_degree": 16384,
-    "send_set_size":   5,
-    "recv_set_size":   5,
-    "sigma":           10
-}

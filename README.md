@@ -10,9 +10,9 @@ All the code is contained in `src` directory, where the logic for sender and rec
 
 ## Compile and install
 To compile and install this project, there is a CMakeLists.txt file so simply cd into `psi_scheme` directory, then type inside a terminal
-```PowerShell
-    cmake .
-    make
+```
+cmake .
+make
 ```
 
 This will generate the `test` binary file, which contains a set of test cases to verify that the scheme is working correctly.

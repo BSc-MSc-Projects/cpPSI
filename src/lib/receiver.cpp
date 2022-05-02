@@ -6,6 +6,7 @@
 
 
 #include <cstddef>
+#include <fstream>
 #include <iostream>
 #include <ostream>
 #include <string>
@@ -23,12 +24,14 @@ using namespace seal;
 
 #define RECV_AUDIT
 
+
 // Function prototypes
 void print_intersection(vector<string> intersection);
+void write_result_on_file(vector<string> intersection);
 
 
 /** 
- * Apply homomorphic encryption on receiver's dataset, to produce an encrypted matrix that will be deilvered to 
+ * Encrypt receiver's dataset, to produce an encrypted matrix that will be deilvered to 
  * the sender. 
  * 
  * @param recv      Instance of Receiver class
@@ -41,13 +44,17 @@ Ciphertext crypt_dataset(Receiver recv, EncryptionParameters params)
 	Ciphertext encrypted_recv_matrix;
 	vector<string> recv_dataset = recv.getRecvDataset();
 	if(recv_dataset.size() == 0) {      // sanity check on dataset
-		printf("Receiver dataset is empty");
+#ifdef RECV_AUDIT
+        printf("Receiver dataset is empty");
+#endif
 		return encrypted_recv_matrix;
 	}
 
 	vector<uint64_t> longint_recv_dataset = bitstring_to_long_dataset(recv_dataset);
 	if (longint_recv_dataset.size() == 0){
+#ifdef RECV_AUDIT
 		printf("Receiver dataset is malformed\n");
+#endif
 		return encrypted_recv_matrix;
 	}
 
@@ -75,7 +82,9 @@ Ciphertext crypt_dataset(Receiver recv, EncryptionParameters params)
 		encryptor.encrypt(plain_recv_matrix, encrypted_recv_matrix);
 	}
 
+#ifdef RECV_AUDIT
 	printf("First step completed\n");
+#endif
 
 	return encrypted_recv_matrix;
 }
@@ -97,8 +106,10 @@ ComputationResult decrypt_and_intersect(EncryptionParameters params, Ciphertext 
 	ComputationResult result(noise, intersection);
 
 	if(sender_computation.size() == 0){								// sanity check before computing the intersection
-		printf("Sender ciphertext size is 0\n");
-		return result;
+#ifdef RECV_AUDIT
+        printf("Sender ciphertext size is 0\n");
+#endif
+        return result;
 	}
 	SEALContext recv_context(params);     							// this class checks the validity of the parameters set
 	Decryptor recv_decryptor(recv_context, recv.getRecvSk());	
@@ -120,9 +131,10 @@ ComputationResult decrypt_and_intersect(EncryptionParameters params, Ciphertext 
 	for(long index = 0; index < recv.getRecvDataset().size(); index++)
 		if(pod_result[index] == 0)									// the value belongs to the intersection
 			intersection.push_back(recv.getRecvDataset()[index]);
-	
+#ifdef RECV_AUDIT	
     printf("Last step completed\n");
-	
+#endif
+
     if(intersection.size() > 0)
 		print_intersection(intersection);
 	else
@@ -131,12 +143,15 @@ ComputationResult decrypt_and_intersect(EncryptionParameters params, Ciphertext 
 	result.setIntersection(intersection);
 	result.setNoiseBudget(recv_decryptor.invariant_noise_budget(sender_computation));
 	
+    write_result_on_file(intersection);
+    
     return result;
 }
 
 
 /** 
- * Generate public and secret keys for recevier operations
+ * Generate public and secret keys for recevier operations and relinearization keys that will be used by
+ * sender
  *
  * @param params    EncryptionParameters class instance, containing the information about the scheme
  * 
@@ -189,4 +204,30 @@ void print_intersection(vector<string> intersection)
 		cout << ' ' <<  s << v_line << stoull(s, 0, 2) << endl;
 		cout << o_line << endl;
 	}
+}
+
+
+/** 
+ * Write intersection result on a .txt file 
+ *
+ * @param intersection The strings belonging to the inresection 
+ * */
+void write_result_on_file(vector<string> intersection)
+{
+    string path = "src/output/intersection.txt";
+    ofstream result_file(path, ios::out);
+    
+    if(result_file.is_open()){
+        for(string result_string : intersection)
+            result_file << result_string << "\n";
+#ifdef RECV_AUDIT
+        printf("\n\nOutput dataset wrote on file \n");
+#endif
+        result_file.close();
+    }
+    else{
+#ifdef RECV_AUDIT
+    printf("recv: Error while opening output file \n");
+#endif
+    }
 }

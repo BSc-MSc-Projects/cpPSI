@@ -14,18 +14,16 @@
 #include "../lib/receiver.h"
 
 
-string recv_path = "src/dataset/receiver.csv";
-string send_path = "src/dataset/sender.csv";
-
-
 /** Generate both sender and receiver datasets to run the tests 
  *
  * @param n_entries 		Number of bitstrings in each dataset 
  * @param string_length 	Lenght of each bitstring
  * @param n_intersect 		Number of bitstrings that will be in the inresection between the datasets
- * 
+ * @param recv_path         Path of receiver dataset
+ * @param send_path         Path of sender dataset
+ *
  * */
-vector<string> generate_dataset(int n_entries, int string_length, int n_intersect)
+vector<string> generate_dataset(int n_entries, int string_length, int n_intersect, string recv_path, string send_path)
 {
 	vector<string> intersection;	// keeps the strings that will be in the intersection between the two datasets
 	intersection = write_on_file(n_entries, string_length, n_intersect, recv_path, intersection);
@@ -94,60 +92,84 @@ void write_result(vector<ComputationResult> test_class_vector, vector<PsiParams>
 }
 
 
-int main (int argc, char *argv[])
+/** 
+ * Generate a vector of PsiParams, where each one is a distinct test case configuration 
+ * 
+ * return Vector of PsiParams instances
+ * */
+vector<PsiParams> getTestCases()
 {
-	vector<ComputationResult> test_class_vector;
-	vector<PsiParams> params_vector;
-	vector<int> n_entries = {4,6,8,10};
+    vector<PsiParams> params_vector;
+	vector<int> n_entries = {4};//,6,8,10};
+	vector<size_t> poly_mod_degrees = {8192};//, 16384};
 	int string_lengths = 4;
 	int num_intersects = 4;
-	vector<size_t> poly_mod_degrees = {8192, 16384};
-	vector<string> intersection;		                                            // known intersection 
 
-	// Tests consider a different size of the datasets and different poly_mod_degrees values 
-	for(size_t mod_degree : poly_mod_degrees){
-        for(int entry : n_entries){
-			// Setup the test class
-			PsiParams psi_test(entry, entry, string_lengths, num_intersects, mod_degree);
-            params_vector.push_back(psi_test);
-            
-            print_start_computation(psi_test);
-			intersection = generate_dataset(entry, string_lengths, num_intersects); // generate the datasets
+    for(int entry : n_entries){
+        for(size_t poly_mod : poly_mod_degrees)
+            params_vector.push_back(PsiParams(entry, entry, string_lengths, num_intersects, poly_mod));
+    }
+    return params_vector;
+}
+
+
+int main (int argc, char *argv[])
+{
+	if(argc < 3){
+        printf("Usage:\n1) prog\n2) path for recevier dataset\n3) Path for sender dataset\n");
+        return 0;
+    }
+
+    string recv_path = argv[1];
+    string send_path = argv[2];
+
+    vector<ComputationResult> test_class_vector;
+	vector<PsiParams> params_vector = getTestCases(); 
+	vector<string> intersection;
+
+    // Run a test for each configuration
+    for(PsiParams param : params_vector){
+	
+        // Setup the test class
+        print_start_computation(param);
+		intersection = generate_dataset(param.getSendNumEntries(), param.getStringLength(), param.getIntersectLength(),
+                recv_path, send_path);
 			
-			// Setup the parameters for the homomorphic scheme
-    		EncryptionParameters params(scheme_type::bfv);
-			params.set_poly_modulus_degree(mod_degree);
-			params.set_coeff_modulus(CoeffModulus::BFVDefault(mod_degree));
-			params.set_plain_modulus(PlainModulus::Batching(mod_degree, 20));	
+		// Setup the parameters for the homomorphic scheme
+    	EncryptionParameters params(scheme_type::bfv);
+		params.set_poly_modulus_degree(param.getPolyModDegree());
+		params.set_coeff_modulus(CoeffModulus::BFVDefault(param.getPolyModDegree()));
+		params.set_plain_modulus(PlainModulus::Batching(param.getPolyModDegree(), 20));	
 		
-			Receiver recv;
-			recv = setup_pk_sk(params);
-			vector<string> recv_dataset;
-			recv.setRecvDataset(convert_dataset(recv_path));
+		Receiver recv;
+		recv = setup_pk_sk(params);
+		vector<string> recv_dataset;
+		recv.setRecvDataset(convert_dataset(recv_path));
 
-			// Set up the high res clock
-			chrono::high_resolution_clock::time_point before, after;
-			before = chrono::high_resolution_clock::now();
+		// Set up the high res clock
+		chrono::high_resolution_clock::time_point before, after;
+		before = chrono::high_resolution_clock::now();
             
-            // The full scheme
-			Ciphertext recv_encr_data = crypt_dataset(recv, params);
-			Ciphertext send_encr_result = homomorphic_computation(recv_encr_data, params, convert_dataset(send_path), 
-                    recv.getRelinKeys());
-	        ComputationResult result = decrypt_and_intersect(params, send_encr_result, recv);
+        // The full scheme
+		Ciphertext recv_encr_data = crypt_dataset(recv, params);
+		Ciphertext send_encr_result = homomorphic_computation(recv_encr_data, params, convert_dataset(send_path), 
+                recv.getRelinKeys());
+	    ComputationResult result = decrypt_and_intersect(params, send_encr_result, recv);
 			
-            // Acquire timing
-            after = chrono::high_resolution_clock::now();
+        // Acquire timing
+        after = chrono::high_resolution_clock::now();
 
-			result.setTimeVector(chrono::duration_cast<chrono::duration<double>>(after-before));
-			test_class_vector.push_back(result);
-			
-			if(check_result(intersection, result.getIntersection()) == 0)
-				cout << "\033[1;32mTest success \033[0m\n";
-			else
-				cout << "\033[1;31mTest failed \033[0m\n";
+		result.setTimeVector(chrono::duration_cast<chrono::duration<double>>(after-before));
+		test_class_vector.push_back(result);
+		
+        // Test assetion 
+		if(check_result(intersection, result.getIntersection()) == 0)
+			cout << "\033[1;32mTest success \033[0m\n";
+		else
+			cout << "\033[1;31mTest failed \033[0m\n";
 		}
         printf("\n");
-	}
+
 	write_result(test_class_vector, params_vector);
 	return 0;
 }
