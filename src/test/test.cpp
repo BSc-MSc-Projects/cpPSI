@@ -100,13 +100,13 @@ void write_result(vector<ComputationResult> test_class_vector, vector<PsiParams>
 vector<PsiParams> getTestCases()
 {
     vector<PsiParams> params_vector;
-	vector<int> n_entries = {4};//,6,8,10};
-	vector<size_t> poly_mod_degrees = {8192};//, 16384};
+	vector<int> n_entries = {4,6,8,10};
+	vector<size_t> poly_mod_degrees = {8192, 16384};
 	int string_lengths = 4;
 	int num_intersects = 4;
 
-    for(int entry : n_entries){
-        for(size_t poly_mod : poly_mod_degrees)
+    for(size_t poly_mod : poly_mod_degrees){
+        for(int entry : n_entries)
             params_vector.push_back(PsiParams(entry, entry, string_lengths, num_intersects, poly_mod));
     }
     return params_vector;
@@ -136,12 +136,9 @@ int main (int argc, char *argv[])
                 recv_path, send_path);
 			
 		// Setup the parameters for the homomorphic scheme
-    	EncryptionParameters params(scheme_type::bfv);
-		params.set_poly_modulus_degree(param.getPolyModDegree());
-		params.set_coeff_modulus(CoeffModulus::BFVDefault(param.getPolyModDegree()));
-		params.set_plain_modulus(PlainModulus::Batching(param.getPolyModDegree(), 20));	
+    	EncryptionParameters params = get_params(param.getPolyModDegree());//(scheme_type::bfv);
 		
-		Receiver recv;
+        Receiver recv;
 		recv = setup_pk_sk(params);
 		vector<string> recv_dataset;
 		recv.setRecvDataset(convert_dataset(recv_path));
@@ -149,12 +146,12 @@ int main (int argc, char *argv[])
 		// Set up the high res clock
 		chrono::high_resolution_clock::time_point before, after;
 		before = chrono::high_resolution_clock::now();
-            
+ 
         // The full scheme
-		Ciphertext recv_encr_data = crypt_dataset(recv, params);
-		Ciphertext send_encr_result = homomorphic_computation(recv_encr_data, params, convert_dataset(send_path), 
-                recv.getRelinKeys());
-	    ComputationResult result = decrypt_and_intersect(params, send_encr_result, recv);
+		Ciphertext recv_encr_data = crypt_dataset(recv, param.getPolyModDegree());
+		Ciphertext send_encr_result = homomorphic_computation(recv_encr_data, param.getPolyModDegree(), 
+                convert_dataset(send_path), recv.getRelinKeys());
+	    ComputationResult result = decrypt_and_intersect(param.getPolyModDegree(), send_encr_result, recv);
 			
         // Acquire timing
         after = chrono::high_resolution_clock::now();

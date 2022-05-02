@@ -9,10 +9,27 @@
 
 #include "utils.h"
 
-using namespace std;
 
 #define AUDIT
 uint64_t max_size = 64UL;
+
+
+/** 
+ * Generate EncryptionParamaters, needed to encrypt / decrypt 
+ * 
+ * @param poly_mode_degree Polynomial modulus degree size (in bits)
+ *
+ * return EncryptionParameters instance
+ * */
+EncryptionParameters get_params(size_t poly_mode_degree)
+{
+    EncryptionParameters params(scheme_type::bfv);
+	params.set_poly_modulus_degree(poly_mode_degree);
+	params.set_coeff_modulus(CoeffModulus::BFVDefault(poly_mode_degree));
+	params.set_plain_modulus(PlainModulus::Batching(poly_mode_degree, 20));
+
+    return params;
+}
 
 
 /**

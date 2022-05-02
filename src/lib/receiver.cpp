@@ -34,12 +34,12 @@ void write_result_on_file(vector<string> intersection);
  * Encrypt receiver's dataset, to produce an encrypted matrix that will be deilvered to 
  * the sender. 
  * 
- * @param recv      Instance of Receiver class
- * @param params    EncryptionParameters class that contains BFV scheme parameters
+ * @param recv              Instance of Receiver class
+ * @param poly_mod_degree   size of the polynomial modulus (bits), used to configure the parameters
  *
- * @return          A [matrix] Ciphertext that contains the ecnrypted values of the dataset
+ * @return                  A [matrix] Ciphertext that contains the ecnrypted values of the dataset
  * */
-Ciphertext crypt_dataset(Receiver recv, EncryptionParameters params)
+Ciphertext crypt_dataset(Receiver recv, size_t poly_mod_degree)
 {   
 	Ciphertext encrypted_recv_matrix;
 	vector<string> recv_dataset = recv.getRecvDataset();
@@ -57,8 +57,9 @@ Ciphertext crypt_dataset(Receiver recv, EncryptionParameters params)
 #endif
 		return encrypted_recv_matrix;
 	}
-
-	SEALContext recv_context(params);   // this class checks the validity of the parameters set 
+    
+    EncryptionParameters prams = get_params(poly_mod_degree);
+	SEALContext recv_context(prams);
 	Encryptor encryptor(recv_context, recv.getRecvPk());
 	Plaintext plain_recv_matrix;
 	vector<Ciphertext> cipher_dataset;
@@ -93,13 +94,13 @@ Ciphertext crypt_dataset(Receiver recv, EncryptionParameters params)
 /** 
  * Last part of the PSI scheme, where the receiver computes the intersection between the two dataset.
  * 
- * @param params                EncryptionParameters class instance, containing the information about the scheme
+ * @param poly_mod_degree       size of the polynomial modulus (bits), used to configure the parameters
  * @param sender_computation    Ciphertext resulting after the homomorphic computation performed by the sender
  * @param recv                  Receiver class instance containing the secret key used to decrypt
  * 
  * @return                      Result of the computation
  * */
-ComputationResult decrypt_and_intersect(EncryptionParameters params, Ciphertext sender_computation, Receiver recv)
+ComputationResult decrypt_and_intersect(size_t poly_mod_degree, Ciphertext sender_computation, Receiver recv)
 {
 	vector<string> intersection;
 	size_t noise = 0;
@@ -111,7 +112,8 @@ ComputationResult decrypt_and_intersect(EncryptionParameters params, Ciphertext 
 #endif
         return result;
 	}
-	SEALContext recv_context(params);     							// this class checks the validity of the parameters set
+    EncryptionParameters params = get_params(poly_mod_degree);
+	SEALContext recv_context(params);
 	Decryptor recv_decryptor(recv_context, recv.getRecvSk());	
 	Plaintext plain_result;
 	vector<uint64_t> pod_result;

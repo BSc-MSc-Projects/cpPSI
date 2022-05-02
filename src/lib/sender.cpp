@@ -61,13 +61,13 @@ vector<uint64_t> gen_rand(size_t slot_count, size_t dataset_size)
  * the sender's one, and finally multiply for a random value.
  *
  * @param recv_ct           Ciphertext matrix sent by the receiver
- * @param params            EncryptionParameters parameters agreed with the Receiver
+ * @param poly_mod_degree   size of the polynomial modulus (bits), used to configure the parameters
  * @param sender_dataset    Set of bitstrings of the sender
  * @param send_relin_keys   Relinearization keys used to reduce chipertext size after homomorphic operations
  *
  * @return                  Homomorphic computation of the sender, the resulting ciphertext d
  * */
-Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters params, vector<string> sender_dataset, 
+Ciphertext homomorphic_computation(Ciphertext recv_ct, size_t poly_mod_degree, vector<string> sender_dataset, 
         RelinKeys send_relin_keys)
 {
 	Ciphertext d; 			                               // the final result
@@ -86,9 +86,10 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, EncryptionParameters para
 #endif
 		return d;
 	}
+    
+    EncryptionParameters prams = get_params(poly_mod_degree);
+	SEALContext send_context(prams);
 
-	SEALContext send_context(params);
-	
 	/* Used to evalutate each single ciphertext value sent by the recevier */
 	Evaluator send_evaluator(send_context);	
 	KeyGenerator send_keygen(send_context);

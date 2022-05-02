@@ -101,6 +101,7 @@ private:
 
 
 // Function prototypes
+EncryptionParameters get_params(size_t poly_mode_degree);
 vector<string> convert_dataset(string path);
 vector<uint64_t> bitstring_to_long_dataset(vector<string> dataset);
 vector<string> write_on_file(int n_entries, int string_length, int n_intersect, string path, 
