@@ -30,6 +30,7 @@ using namespace seal;
 
 
 #define SEND_AUDIT
+#define SEED 987654321
 
 
 /**
@@ -43,7 +44,7 @@ using namespace seal;
 vector<uint64_t> gen_rand(size_t slot_count, size_t dataset_size)
 {
 	vector<uint64_t> rand_val_matrix(slot_count, 0ULL);
-	random_device rd;     	// Get a random seed from the OS entropy device, or whatever
+	/*random_device rd;     	// Get a random seed from the OS entropy device, or whatever
   	mt19937_64 eng(rd());   // Use the 64-bit Mersenne Twister 19937 generator and seed it with entropy.
 	
 	//Define the distribution, by default it goes from 0 to MAX(unsigned long long) or what have you.
@@ -51,7 +52,11 @@ vector<uint64_t> gen_rand(size_t slot_count, size_t dataset_size)
 	for(size_t index = 0; index < dataset_size; index++){
 		size_t value = distr(eng);
 		rand_val_matrix[index] = value;	
-	}
+	}*/
+    srand(SEED);
+	for(size_t index = 0; index < dataset_size; index++)
+		rand_val_matrix[index] = rand();	
+
 	return rand_val_matrix;
 }
 
@@ -67,7 +72,9 @@ vector<uint64_t> gen_rand(size_t slot_count, size_t dataset_size)
  *
  * @return                  Homomorphic computation of the sender, the resulting ciphertext d
  * */
-Ciphertext homomorphic_computation(Ciphertext recv_ct, size_t poly_mod_degree, vector<string> sender_dataset, 
+//Ciphertext homomorphic_computation(Ciphertext recv_ct, size_t poly_mod_degree, vector<string> sender_dataset, 
+        //RelinKeys send_relin_keys)
+Ciphertext homomorphic_computation(Ciphertext recv_ct, size_t poly_mod_degree, vector<uint64_t> sender_dataset, 
         RelinKeys send_relin_keys)
 {
 	Ciphertext d; 			                               // the final result
@@ -79,13 +86,13 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, size_t poly_mod_degree, v
 		return d;
 	}
 
-	vector<uint64_t> longint_sender_dataset = bitstring_to_long_dataset(sender_dataset);
-	if (longint_sender_dataset.size() == 0){
+	//vector<uint64_t> longint_sender_dataset = string_to_int_dataset(sender_dataset);//bitstring_to_long_dataset(sender_dataset);
+	/*if (longint_sender_dataset.size() == 0){
 #ifdef SEND_AUDIT
 		printf("Sender dataset is malformed\n");
 #endif
 		return d;
-	}
+	}*/
     
     EncryptionParameters prams = get_params(poly_mod_degree);
 	SEALContext send_context(prams);
@@ -104,7 +111,7 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, size_t poly_mod_degree, v
 	size_t row_size = slot_count/2;
 
 	// Compute the first subtraction
-	vector<uint64_t> first_val_matrix(slot_count, longint_sender_dataset[0]);
+	vector<uint64_t> first_val_matrix(slot_count, sender_dataset[0]);
 	Plaintext first_plain;
 	encoder.encode(first_val_matrix, first_plain);
 		
@@ -114,7 +121,7 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, size_t poly_mod_degree, v
 	 * Then, multiply with the previous value to keep up with the polynomial computation 
      * */
 	for(long index = 1; index < sender_dataset.size(); index++){
-		vector<uint64_t> prod_matrix(slot_count, longint_sender_dataset[index]);
+		vector<uint64_t> prod_matrix(slot_count, sender_dataset[index]);
 		Plaintext sub_plain;
 		Ciphertext sub_encrypted; 
 		encoder.encode(prod_matrix, sub_plain);

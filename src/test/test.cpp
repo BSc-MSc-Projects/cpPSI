@@ -12,6 +12,7 @@
 
 #include "../lib/sender.h"
 #include "../lib/receiver.h"
+#include "dataset_gen.h"
 
 
 /** Generate both sender and receiver datasets to run the tests 
@@ -26,9 +27,9 @@
 vector<string> generate_dataset(int n_entries, int string_length, int n_intersect, string recv_path, string send_path)
 {
 	vector<string> intersection;	// keeps the strings that will be in the intersection between the two datasets
-	intersection = write_on_file(n_entries, string_length, n_intersect, recv_path, intersection);
+	intersection = gen_rand_dataset(n_entries, string_length, n_intersect, recv_path, intersection);
 	printf("First dataset generated\n");
-	write_on_file(n_entries, string_length, 0, send_path, intersection);
+	gen_rand_dataset(n_entries, string_length, 0, send_path, intersection);
 
 	return intersection;
 }
@@ -79,10 +80,11 @@ void write_result(vector<ComputationResult> test_class_vector, vector<PsiParams>
 			result_file << "Modulus length,Bitstring size,Dataset size,Computation Time,Remaining noise\n";	
 		
         for(size_t index = 0; index < test_class_vector.size(); index++){
-			result_file << params_vector[index].getPolyModDegree() << "," << params_vector[index].getStringLength() 
-                        << "," << params_vector[index].getRecvNumEntries() << "," << 
-                        test_class_vector[index].getTimeVector().count() << "," 
-                        << test_class_vector[index].getNoiseBudget() << "\n";
+			result_file << params_vector[index].getPolyModDegree() << "," 
+                << params_vector[index].getStringLength() 
+                << "," << params_vector[index].getRecvNumEntries() << "," 
+                << test_class_vector[index].getTimeVector().count() << "," 
+                << test_class_vector[index].getNoiseBudget() << "\n";
 	    }
     }
 	else{
@@ -100,9 +102,9 @@ void write_result(vector<ComputationResult> test_class_vector, vector<PsiParams>
 vector<PsiParams> getTestCases()
 {
     vector<PsiParams> params_vector;
-	vector<int> n_entries = {4,6,8,10};
-	vector<size_t> poly_mod_degrees = {8192, 16384};
-	int string_lengths = 4;
+	vector<int> n_entries = {4};//,6,8,10};
+	vector<size_t> poly_mod_degrees = {8192};//, 16384};
+	int string_lengths = 24;
 	int num_intersects = 4;
 
     for(size_t poly_mod : poly_mod_degrees){
@@ -123,6 +125,8 @@ int main (int argc, char *argv[])
     string recv_path = argv[1];
     string send_path = argv[2];
 
+    cout << "Paths:" << recv_path << "," << send_path << endl;
+
     vector<ComputationResult> test_class_vector;
 	vector<PsiParams> params_vector = getTestCases(); 
 	vector<string> intersection;
@@ -132,16 +136,23 @@ int main (int argc, char *argv[])
 	
         // Setup the test class
         print_start_computation(param);
-		intersection = generate_dataset(param.getSendNumEntries(), param.getStringLength(), param.getIntersectLength(),
-                recv_path, send_path);
+		intersection = generate_dataset(param.getSendNumEntries(), param.getStringLength(), 
+                param.getIntersectLength(), recv_path, send_path);
 			
 		// Setup the parameters for the homomorphic scheme
-    	EncryptionParameters params = get_params(param.getPolyModDegree());//(scheme_type::bfv);
+    	EncryptionParameters params = get_params(param.getPolyModDegree());
 		
-        Receiver recv;
-		recv = setup_pk_sk(params);
-		vector<string> recv_dataset;
-		recv.setRecvDataset(convert_dataset(recv_path));
+        // Setup receiver dataset
+        Dataset recv_dataset;
+        recv_dataset.setLongDataset(string_to_int_dataset(recv_path));
+        recv_dataset.setStringDataset(read_dataset_from_file(recv_path));
+        recv_dataset.setSigmaLength(recv_dataset.getStringDataset()[0].length());
+
+        Receiver recv = setup_pk_sk(params);
+        recv.setDataset(recv_dataset);
+
+        // Convert sender dataset into uint64_t
+        vector<uint64_t> sender_dataset = string_to_int_dataset(send_path);
 
 		// Set up the high res clock
 		chrono::high_resolution_clock::time_point before, after;
@@ -149,8 +160,8 @@ int main (int argc, char *argv[])
  
         // The full scheme
 		Ciphertext recv_encr_data = crypt_dataset(recv, param.getPolyModDegree());
-		Ciphertext send_encr_result = homomorphic_computation(recv_encr_data, param.getPolyModDegree(), 
-                convert_dataset(send_path), recv.getRelinKeys());
+		Ciphertext send_encr_result = homomorphic_computation(recv_encr_data, param.getPolyModDegree(),
+                sender_dataset, recv.getRelinKeys());
 	    ComputationResult result = decrypt_and_intersect(param.getPolyModDegree(), send_encr_result, recv);
 			
         // Acquire timing

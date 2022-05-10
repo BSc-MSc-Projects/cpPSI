@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.23)
 project(psi_scheme)
 
 find_package(SEAL)
-# Create a library with the necessary files, including .cpp and .h
-file(GLOB LIB_SOURCES src/lib/*.cpp)
+# Create a library with the necessary files
+file(GLOB LIB_SOURCES src/lib/*.cpp src/test/dataset_gen.cpp)
 
 # Add test executable
 add_executable(test src/test/test.cpp ${LIB_SOURCES})

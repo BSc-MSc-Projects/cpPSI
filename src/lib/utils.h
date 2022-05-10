@@ -10,67 +10,76 @@ using namespace std;
 using namespace seal;
 
 
+class Dataset
+{
+    public:
+        void setLongDataset(vector<uint64_t> longint_dataset){ this->longint_dataset = longint_dataset; }
+        void setStringDataset(vector<string> string_dataset){ this->string_dataset = string_dataset; }
+        void setSigmaLength(long sigma){ this->sigma =sigma; }
+
+        vector<uint64_t> getLongDataset(){ return this->longint_dataset; }
+        vector<string> getStringDataset(){ return this->string_dataset; }
+        long getSigmaLength(){ return this->sigma; }
+    
+    private:
+        vector<uint64_t> longint_dataset;   // uint64_t representation of the dataset
+        vector<string> string_dataset;
+        long sigma;                         // length (in bits) of each string
+};
+
+
 /** 
  * Recevier class, used to save public/private keys and the dataset that will be used 
  * to check which strings belong to the intersection 
  * */
 class Receiver
 {
-public:
-	void setRecvDataset(vector<string> dataset)
-    { 
-		this->recv_dataset = dataset;
-		if (dataset.size() > 0)
-			setBitsSize(dataset[0].length());
-	}
-	void setRecvSk(SecretKey sk){ this->recv_sk = sk; } 
-	void setRecvPk(PublicKey pk){ this->recv_pk = pk; }
-    void setRelinKeys(RelinKeys relin_keys) { this->relin_keys = relin_keys; }
-	void setBitsSize(long size) { this->bits_size = size; }
+    public:
+	    void setRecvSk(SecretKey sk){ this->recv_sk = sk; } 
+	    void setRecvPk(PublicKey pk){ this->recv_pk = pk; }
+        void setRelinKeys(RelinKeys relin_keys) { this->relin_keys = relin_keys; }
+        void setDataset(Dataset recv_dataset) { this->recv_dataset = recv_dataset; }
 	
-	SecretKey getRecvSk(){ return this->recv_sk; } 
-	PublicKey getRecvPk(){ return this->recv_pk; }
-    RelinKeys getRelinKeys() { return this->relin_keys; }
-	vector<string> getRecvDataset(){ return this->recv_dataset; }
-	long getDatasetSize(){ return this->bits_size; }
+	    SecretKey getRecvSk(){ return this->recv_sk; } 
+	    PublicKey getRecvPk(){ return this->recv_pk; }
+        RelinKeys getRelinKeys() { return this->relin_keys; }
+        Dataset getDataset() { return this->recv_dataset; }
 
-private:
-	SecretKey recv_sk;
-	PublicKey recv_pk;
-    RelinKeys relin_keys;
-	vector<string> recv_dataset;
-	long bits_size;
+    private:
+	    SecretKey recv_sk;
+	    PublicKey recv_pk;
+        RelinKeys relin_keys;
+        Dataset recv_dataset;
 };
 
 
 /** Class used to keep the parameters used for the scheme */
 class PsiParams
 {
-public:
-	PsiParams(int sender_size, int recv_size, int sigma, int intersection, size_t poly_mod_degree)
-    {
-		this->sender_set_size = sender_size;
-		this->recv_set_size = recv_size;
-		this->intersect_length = intersection;
-        this->sigma = sigma;
-		this->poly_mod_degree = poly_mod_degree;
-	}
+    public:
+	    PsiParams(int sender_size, int recv_size, int sigma, int intersection, size_t poly_mod_degree)
+        {
+		    this->sender_set_size = sender_size;
+		    this->recv_set_size = recv_size;
+		    this->intersect_length = intersection;
+            this->sigma = sigma;
+		    this->poly_mod_degree = poly_mod_degree;
+	    }
 	
-	int getSendNumEntries(){ return this->sender_set_size; }
-	int getRecvNumEntries(){ return this->recv_set_size; }
-	int getStringLength(){ return this->sigma; }
-	int getIntersectLength(){ return this->intersect_length; }
-	int getPolyModDegree(){ return this->poly_mod_degree; }
+	    int getSendNumEntries(){ return this->sender_set_size; }
+	    int getRecvNumEntries(){ return this->recv_set_size; }
+	    int getStringLength(){ return this->sigma; }
+	    int getIntersectLength(){ return this->intersect_length; }
+	    int getPolyModDegree(){ return this->poly_mod_degree; }
 
-private:
-	// Fields used to construct the datasets 
-	int sender_set_size;        // number of bitstrings in receiver's private set
-	int recv_set_size;          // number of bitstrings in sender's private set 
-	int sigma;                  // size of a single bitstring (expressed in bits)
-	int intersect_length;       // number of strings that belong to both sets
+    private:
+	    int sender_set_size;        // number of bitstrings in receiver's private set
+	    int recv_set_size;          // number of bitstrings in sender's private set 
+	    int sigma;                  // size of a single bitstring (expressed in bits)
+	    int intersect_length;       // number of strings that belong to both sets
 
-	// Psi scheme values
-	size_t poly_mod_degree;
+	    // Psi scheme values
+	    size_t poly_mod_degree;
 };
 
 
@@ -102,9 +111,8 @@ private:
 
 // Function prototypes
 EncryptionParameters get_params(size_t poly_mode_degree);
-vector<string> convert_dataset(string path);
+vector<string> read_dataset_from_file(string path);
 vector<uint64_t> bitstring_to_long_dataset(vector<string> dataset);
-vector<string> write_on_file(int n_entries, int string_length, int n_intersect, string path, 
-        vector<string> prev_intersect);
 void print_line();
 void print_start_computation(PsiParams params);
+vector<uint64_t> string_to_int_dataset(string path);

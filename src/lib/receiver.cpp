@@ -42,15 +42,17 @@ void write_result_on_file(vector<string> intersection);
 Ciphertext crypt_dataset(Receiver recv, size_t poly_mod_degree)
 {   
 	Ciphertext encrypted_recv_matrix;
-	vector<string> recv_dataset = recv.getRecvDataset();
-	if(recv_dataset.size() == 0) {      // sanity check on dataset
+	//vector<string> recv_dataset = recv.getRecvDataset();
+	/*
+    if(recv_dataset.size() == 0) {      // sanity check on dataset
 #ifdef RECV_AUDIT
         printf("Receiver dataset is empty");
 #endif
 		return encrypted_recv_matrix;
 	}
+    */
 
-	vector<uint64_t> longint_recv_dataset = bitstring_to_long_dataset(recv_dataset);
+	vector<uint64_t> longint_recv_dataset = recv.getDataset().getLongDataset();//string_to_int_dataset(recv.getRecvPath());//bitstring_to_long_dataset(recv_dataset);
 	if (longint_recv_dataset.size() == 0){
 #ifdef RECV_AUDIT
 		printf("Receiver dataset is malformed\n");
@@ -73,12 +75,11 @@ Ciphertext crypt_dataset(Receiver recv, size_t poly_mod_degree)
 	 * the dataset is encrypted using the encryptor class and the obtained dataset is then sent 
      * to the sender (returned by the function)
 	 * */
-	for(size_t index = 0; index < recv_dataset.size(); index++)
+	for(size_t index = 0; index < longint_recv_dataset.size(); index++)//recv_dataset.size(); index++)
 		batch_recv_matrix[index] = longint_recv_dataset[index];
 	
-	if(recv_dataset.size() > 0) {
-
-        // Encode and encrypt the whole matrix
+    // Encode and encrypt the whole matrix
+	if(longint_recv_dataset.size() > 0) {
 		recv_batch_encoder.encode(batch_recv_matrix, plain_recv_matrix);
 		encryptor.encrypt(plain_recv_matrix, encrypted_recv_matrix);
 	}
@@ -124,28 +125,30 @@ ComputationResult decrypt_and_intersect(size_t poly_mod_degree, Ciphertext sende
 #endif
 
 	BatchEncoder encoder(recv_context);
-	long size = recv.getDatasetSize();
+	long size = recv.getDataset().getSigmaLength();
+    vector<uint64_t> recv_dataset = recv.getDataset().getLongDataset();
 	
     // Decrypt and decode the received matrix
 	recv_decryptor.decrypt(sender_computation, plain_result);
 	encoder.decode(plain_result, pod_result);
     
-	for(long index = 0; index < recv.getRecvDataset().size(); index++)
+	for(long index = 0; index < recv_dataset.size(); index++)
 		if(pod_result[index] == 0)									// the value belongs to the intersection
-			intersection.push_back(recv.getRecvDataset()[index]);
+			intersection.push_back(recv.getDataset().getStringDataset()[index]);
 #ifdef RECV_AUDIT	
     printf("Last step completed\n");
 #endif
 
     if(intersection.size() > 0)
-		print_intersection(intersection);
+		printf("Intersection found: %ld\n", intersection.size());
+        //print_intersection(intersection);
 	else
 		printf("The intersection between sender and receiver is null \n");
 	
 	result.setIntersection(intersection);
 	result.setNoiseBudget(recv_decryptor.invariant_noise_budget(sender_computation));
 	
-    write_result_on_file(intersection);
+    //write_result_on_file(intersection);
     
     return result;
 }
