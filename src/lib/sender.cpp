@@ -11,6 +11,7 @@
  * */
 
 
+
 #include <cstdint>
 #include <iostream>
 #include <iterator>
@@ -24,10 +25,8 @@
 #include "seal/seal.h"
 #include "utils.h"
 
-
 using namespace std;
 using namespace seal;
-
 
 #define SEND_AUDIT
 #define SEED 987654321
@@ -44,17 +43,9 @@ using namespace seal;
 vector<uint64_t> gen_rand(size_t slot_count, size_t dataset_size)
 {
 	vector<uint64_t> rand_val_matrix(slot_count, 0ULL);
-	/*random_device rd;     	// Get a random seed from the OS entropy device, or whatever
-  	mt19937_64 eng(rd());   // Use the 64-bit Mersenne Twister 19937 generator and seed it with entropy.
-	
-	//Define the distribution, by default it goes from 0 to MAX(unsigned long long) or what have you.
-  	uniform_int_distribution<uint64_t> distr(1, LONG_MAX);
-	for(size_t index = 0; index < dataset_size; index++){
-		size_t value = distr(eng);
-		rand_val_matrix[index] = value;	
-	}*/
     srand(SEED);
-	for(size_t index = 0; index < dataset_size; index++)
+	
+    for(size_t index = 0; index < dataset_size; index++)
 		rand_val_matrix[index] = rand();	
 
 	return rand_val_matrix;
@@ -86,14 +77,6 @@ Ciphertext homomorphic_computation(Ciphertext recv_ct, size_t poly_mod_degree, v
 		return d;
 	}
 
-	//vector<uint64_t> longint_sender_dataset = string_to_int_dataset(sender_dataset);//bitstring_to_long_dataset(sender_dataset);
-	/*if (longint_sender_dataset.size() == 0){
-#ifdef SEND_AUDIT
-		printf("Sender dataset is malformed\n");
-#endif
-		return d;
-	}*/
-    
     EncryptionParameters prams = get_params(poly_mod_degree);
 	SEALContext send_context(prams);
 

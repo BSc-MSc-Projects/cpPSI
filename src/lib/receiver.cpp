@@ -1,8 +1,10 @@
 /** Receiver logic: this is the first "actor" of the PSI scheme, who wants to know the intersection 
  *  between the datasets. First, it encrypts its how dataset and "sends" the resulting ciphertext to the sender.
- *  Then, it receives the computation on the ecnrypted values from the sender, decrypts and determines which values
- *  belong to the intersection: such values will be the ones which will have value = 0 after decryption.
+ *  Then, it receives the computation on the ecnrypted values from the sender, decrypts and determines 
+ *  which values belong to the intersection: 
+ *  such values will be the ones which will have value = 0 after decryption.
  * */
+
 
 
 #include <cstddef>
@@ -24,7 +26,6 @@ using namespace seal;
 
 #define RECV_AUDIT
 
-
 // Function prototypes
 void print_intersection(vector<string> intersection);
 void write_result_on_file(vector<string> intersection);
@@ -42,20 +43,11 @@ void write_result_on_file(vector<string> intersection);
 Ciphertext crypt_dataset(Receiver recv, size_t poly_mod_degree)
 {   
 	Ciphertext encrypted_recv_matrix;
-	//vector<string> recv_dataset = recv.getRecvDataset();
-	/*
-    if(recv_dataset.size() == 0) {      // sanity check on dataset
-#ifdef RECV_AUDIT
-        printf("Receiver dataset is empty");
-#endif
-		return encrypted_recv_matrix;
-	}
-    */
+	vector<uint64_t> longint_recv_dataset = recv.getDataset().getLongDataset();
 
-	vector<uint64_t> longint_recv_dataset = recv.getDataset().getLongDataset();//string_to_int_dataset(recv.getRecvPath());//bitstring_to_long_dataset(recv_dataset);
 	if (longint_recv_dataset.size() == 0){
 #ifdef RECV_AUDIT
-		printf("Receiver dataset is malformed\n");
+		printf("Receiver dataset is empty\n");
 #endif
 		return encrypted_recv_matrix;
 	}
@@ -107,12 +99,13 @@ ComputationResult decrypt_and_intersect(size_t poly_mod_degree, Ciphertext sende
 	size_t noise = 0;
 	ComputationResult result(noise, intersection);
 
-	if(sender_computation.size() == 0){								// sanity check before computing the intersection
+	if(sender_computation.size() == 0){
 #ifdef RECV_AUDIT
         printf("Sender ciphertext size is 0\n");
 #endif
         return result;
 	}
+
     EncryptionParameters params = get_params(poly_mod_degree);
 	SEALContext recv_context(params);
 	Decryptor recv_decryptor(recv_context, recv.getRecvSk());	
@@ -140,8 +133,7 @@ ComputationResult decrypt_and_intersect(size_t poly_mod_degree, Ciphertext sende
 #endif
 
     if(intersection.size() > 0)
-		printf("Intersection found: %ld\n", intersection.size());
-        //print_intersection(intersection);
+        print_intersection(intersection);
 	else
 		printf("The intersection between sender and receiver is null \n");
 	

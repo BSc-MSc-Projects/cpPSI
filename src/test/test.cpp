@@ -12,10 +12,50 @@
 
 #include "../lib/sender.h"
 #include "../lib/receiver.h"
-#include "dataset_gen.h"
 
 
-/** Generate both sender and receiver datasets to run the tests 
+/** Generate random codes and write them into the output dataset file 
+ *
+ * @param n_entries 		Number of bitstrings in each dataset 
+ * @param string_length 	Lenght of each bitstring
+ * @param n_intersect 		Number of bitstrings that will be in the intersection between the datasets
+ * @param path				Path for the file
+ * @param prev_intersect	vector containing the eventual strings that will belong to the intersection
+ * 
+ * @return 					The strings that will belong to the intersection
+ * */
+vector<string> gen_rand_dataset(int n_entries, int string_length, int n_intersect, string path, 
+        vector<string> prev_intersect)
+{
+    vector<string> intersection;
+	string bitstring = "";
+	ofstream ds_steam(path);
+	
+	if(ds_steam.is_open()){
+		for(int i = 0; i < n_entries - prev_intersect.size(); i++){
+			for(int j = 0; j < string_length; j++)
+				bitstring += to_string(rand()%2);
+			
+			bitstring += '\n';
+			if(i < n_intersect)
+				intersection.push_back(bitstring);
+			ds_steam << bitstring;
+			bitstring = "";
+		}
+		
+		for(int i = 0; i < prev_intersect.size(); i++)
+			ds_steam << prev_intersect[i];
+		
+		ds_steam.close();
+	}
+	else
+        cout << "Cannot open file " << path << endl;
+	
+	return intersection;
+}
+
+
+/** Create both sender and receiver datasets to run the tests 
  *
  * @param n_entries 		Number of bitstrings in each dataset 
  * @param string_length 	Lenght of each bitstring
@@ -24,7 +64,8 @@
  * @param send_path         Path of sender dataset
  *
  * */
-vector<string> generate_dataset(int n_entries, int string_length, int n_intersect, string recv_path, string send_path)
+vector<string> create_send_recv_dataset(int n_entries, int string_length, int n_intersect, string recv_path, 
+        string send_path)
 {
 	vector<string> intersection;	// keeps the strings that will be in the intersection between the two datasets
 	intersection = gen_rand_dataset(n_entries, string_length, n_intersect, recv_path, intersection);
@@ -66,7 +107,8 @@ int check_result(vector<string> expected, vector<string> actual)
 
 
 /** 
- * Write in a .csv file the result of the computation for each test. The file can be used to derive tables and graphs 
+ * Write in a .csv file the result of the computation for each test. 
+ * The file can be used to derive tables and graphs 
  * 
  * @param test_class    Vector containing test results
  * @param params_vector Vector containing parameters for each test
@@ -102,8 +144,8 @@ void write_result(vector<ComputationResult> test_class_vector, vector<PsiParams>
 vector<PsiParams> getTestCases()
 {
     vector<PsiParams> params_vector;
-	vector<int> n_entries = {4};//,6,8,10};
-	vector<size_t> poly_mod_degrees = {8192};//, 16384};
+	vector<int> n_entries = {4,6,8,10};
+	vector<size_t> poly_mod_degrees = {8192, 16384};
 	int string_lengths = 24;
 	int num_intersects = 4;
 
@@ -136,23 +178,22 @@ int main (int argc, char *argv[])
 	
         // Setup the test class
         print_start_computation(param);
-		intersection = generate_dataset(param.getSendNumEntries(), param.getStringLength(), 
+		intersection = create_send_recv_dataset(param.getSendNumEntries(), param.getStringLength(), 
                 param.getIntersectLength(), recv_path, send_path);
 			
 		// Setup the parameters for the homomorphic scheme
     	EncryptionParameters params = get_params(param.getPolyModDegree());
 		
-        // Setup receiver dataset
+        // Setup receiver `Dataset` and `Receiver` class 
         Dataset recv_dataset;
-        recv_dataset.setLongDataset(string_to_int_dataset(recv_path));
+        recv_dataset.setLongDataset(bitstring_to_long_dataset(recv_path));
         recv_dataset.setStringDataset(read_dataset_from_file(recv_path));
         recv_dataset.setSigmaLength(recv_dataset.getStringDataset()[0].length());
-
         Receiver recv = setup_pk_sk(params);
         recv.setDataset(recv_dataset);
 
         // Convert sender dataset into uint64_t
-        vector<uint64_t> sender_dataset = string_to_int_dataset(send_path);
+        vector<uint64_t> sender_dataset = bitstring_to_long_dataset(send_path);
 
 		// Set up the high res clock
 		chrono::high_resolution_clock::time_point before, after;

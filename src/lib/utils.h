@@ -10,6 +10,7 @@ using namespace std;
 using namespace seal;
 
 
+// Represents the dataset that receiver and sender handles
 class Dataset
 {
     public:
@@ -109,10 +110,8 @@ private:
 };
 
 
-// Function prototypes
+vector<uint64_t> bitstring_to_long_dataset(string dataset_path);
 EncryptionParameters get_params(size_t poly_mode_degree);
-vector<string> read_dataset_from_file(string path);
-vector<uint64_t> bitstring_to_long_dataset(vector<string> dataset);
 void print_line();
 void print_start_computation(PsiParams params);
-vector<uint64_t> string_to_int_dataset(string path);
+vector<string> read_dataset_from_file(string path);

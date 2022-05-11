@@ -9,9 +9,9 @@
 
 #include "utils.h"
 
-
 #define AUDIT
-uint64_t max_size = 64UL;
+
+uint64_t max_size = 64UL;   // Maximum size for the bitstring (correponds to uint64_t max size)
 
 
 /** 
@@ -19,7 +19,7 @@ uint64_t max_size = 64UL;
  * 
  * @param poly_mode_degree Polynomial modulus degree size (in bits)
  *
- * return EncryptionParameters instance
+ * return                  EncryptionParameters instance
  * */
 EncryptionParameters get_params(size_t poly_mode_degree)
 {
@@ -29,45 +29,6 @@ EncryptionParameters get_params(size_t poly_mode_degree)
 	params.set_plain_modulus(PlainModulus::Batching(poly_mode_degree, 20));
 
     return params;
-}
-
-
-/**
- * Convert a dataset of char string into an long int one. This is usefull to increment the values that 
- * can be managed by the scheme
- *
- * @param path Path of the file to open
- *
- * return      Vector of unsigned long
- * */
-vector<uint64_t> string_to_int_dataset(string path)
-{
-    vector<uint64_t> int_dataset;
-	
-    // Try to open the file
-	ifstream dataset;
-	dataset.open(path, ios::in);
-	if(!dataset.is_open()){
-#ifdef  AUDIT
-		cout << "cannot open file with path: " << path << endl;
-#endif 
-		return int_dataset;
-	}
-	string dataset_line;
-	
-    /* For each character of the string, convert it into the corresponding int, 
-     * then sum up the values 
-     * */ 
-	while(getline(dataset, dataset_line)){
-        uint64_t conv_value = 0;
-        for(char string_char : dataset_line){
-            conv_value += int(string_char);
-        }
-        int_dataset.push_back(conv_value);
-    }
-	
-	dataset.close();
-	return int_dataset;
 }
 
 
@@ -106,23 +67,25 @@ vector<string> read_dataset_from_file(string path)
  * An exception can be raised (and catch) if the bitstring is not valid and it 
  * causes the impossibilty to convert it into an integer
  *
- * @param dataset   String dataset, each string is expressed in bits 
+ * @param dataset_path  Path of the dataset 
  * 
- * @return          Vector on uint64_t
+ * @return              Vector on uint64_t
  * */
-vector<uint64_t> bitstring_to_long_dataset(vector<string> dataset)
+vector<uint64_t> bitstring_to_long_dataset(string dataset_path)
 {
-	vector<uint64_t> longint_dataset;
-	vector<uint64_t> empty_dataset;
+	vector<string> dataset = read_dataset_from_file(dataset_path);
+    
+    vector<uint64_t> longint_dataset;
 	for(string s : dataset){
 		try{
 			longint_dataset.push_back(stoull(s, 0, 2));
 		}
 		catch (exception& e){
 			printf("An error occurred: the dataset passed is not in a valid format. Only bitstring are accepted\n");
-			return empty_dataset;
+	        return longint_dataset;
 		}
 	}
+
 	return longint_dataset;
 }
 
